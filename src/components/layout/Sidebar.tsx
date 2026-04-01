@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/membresias", label: "Membresias", icon: CreditCard, roles: ["admin","administrativo"] },
   { href: "/bitacora", label: "Bitacora", icon: BookOpen, roles: ["admin","administrativo","medico","biologo"] },
   { href: "/exportar", label: "Exportar", icon: FileDown, roles: ["admin","administrativo"] },
+  { href: "/manuales", label: "Manuales", icon: BookOpen, roles: ["admin","administrativo"] },
 ]
 
 const ADMIN_ITEMS = [
