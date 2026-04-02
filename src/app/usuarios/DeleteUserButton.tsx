@@ -17,7 +17,7 @@ export default function DeleteUserButton({ userId, userName }: { userId: string;
     })
     const data = await res.json()
     if (!res.ok) { alert(data.error); setLoading(false); return }
-    router.refresh()
+    router.push("/usuarios")
   }
 
   return (
