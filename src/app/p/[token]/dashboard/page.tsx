@@ -21,7 +21,7 @@ export default async function PatientDashboardPage({ params }: { params: Promise
 
   const { data: dispenses } = await service
     .from("dispenses")
-    .select("id, dispensed_at, grams, lot:lots(lot_code, genetic:genetics(name))")
+    .select("id, dispensed_at, grams, lot:lots(lot_code, seedling_date, harvest_date, drying_days, curing_days, genetic:genetics(name, strain_type, thc_percentage, cbd_percentage))")
     .eq("patient_id", patient.id)
     .gte("dispensed_at", oneYearAgo.toISOString())
     .order("dispensed_at", { ascending: false })
@@ -146,8 +146,24 @@ export default async function PatientDashboardPage({ params }: { params: Promise
               {dispenseList.slice(0, 5).map((d: any) => (
                 <div key={d.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                   <div>
-                    <p className="text-sm text-white">{formatDate(d.dispensed_at)}</p>
-                    <p className="text-xs text-slate-500">{d.lot?.genetic?.name ?? "Flor seca"}</p>
+                    <div className="flex-1">
+                      <p className="text-sm text-white font-medium">{d.lot?.genetic?.name ?? "Flor seca"}</p>
+                      <p className="text-xs text-slate-500">{formatDate(d.dispensed_at)}</p>
+                      <div className="flex gap-2 mt-1 flex-wrap">
+                        {d.lot?.genetic?.thc_percentage && (
+                          <span className="text-[10px] bg-purple-900/40 text-purple-300 border border-purple-800/50 rounded-full px-2 py-0.5">THC {d.lot.genetic.thc_percentage}%</span>
+                        )}
+                        {d.lot?.genetic?.cbd_percentage && (
+                          <span className="text-[10px] bg-green-900/40 text-green-300 border border-green-800/50 rounded-full px-2 py-0.5">CBD {d.lot.genetic.cbd_percentage}%</span>
+                        )}
+                        {d.lot?.curing_days && (
+                          <span className="text-[10px] bg-amber-900/40 text-amber-300 border border-amber-800/50 rounded-full px-2 py-0.5">{d.lot.curing_days}d curado</span>
+                        )}
+                        {d.lot?.lot_code && (
+                          <span className="text-[10px] bg-white/5 text-slate-400 border border-white/10 rounded-full px-2 py-0.5 font-mono">{d.lot.lot_code}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <span className="text-sm font-medium text-slate-300">{formatGrams(d.grams)}</span>
                 </div>
