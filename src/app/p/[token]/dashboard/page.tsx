@@ -2,6 +2,40 @@ import { createServiceClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { formatDate, formatGrams } from "@/lib/utils"
 
+const NIVELES = [
+  { nombre: "Semilla",  min: 0,    color: "#6b7280" },
+  { nombre: "Brote",    min: 50,   color: "#22c55e" },
+  { nombre: "Planta",   min: 200,  color: "#16a34a" },
+  { nombre: "Flor",     min: 500,  color: "#7c3aed" },
+  { nombre: "Cosecha",  min: 1000, color: "#d97706" },
+  { nombre: "Master",   min: 2000, color: "#dc2626" },
+]
+
+const INSIGNIAS = [
+  { id: "primera",       icon: "★", label: "Primera dispensa",  check: (s: any) => s.totalHistorico > 0 },
+  { id: "veterano",      icon: "♦", label: "6 meses en el club", check: (s: any) => s.mesesActivo >= 6 },
+  { id: "coleccionista", icon: "◈", label: "5 geneticas",        check: (s: any) => s.geneticasProbadas >= 5 },
+  { id: "constante",     icon: "●", label: "Top 3 del mes",      check: (s: any) => s.posicionMes <= 3 },
+  { id: "lider",         icon: "▲", label: "Lider del club",     check: (s: any) => s.posicionHistorico === 1 },
+]
+
+function getNivelYProgreso(grams: number) {
+  let actual = NIVELES[0]
+  let siguiente = NIVELES[1]
+  for (let i = 0; i < NIVELES.length - 1; i++) {
+    if (grams >= NIVELES[i].min && grams < NIVELES[i + 1].min) {
+      actual = NIVELES[i]; siguiente = NIVELES[i + 1]; break
+    }
+    if (grams >= NIVELES[NIVELES.length - 1].min) {
+      actual = NIVELES[NIVELES.length - 1]; siguiente = NIVELES[NIVELES.length - 1]
+    }
+  }
+  const rango = siguiente.min - actual.min
+  const avance = grams - actual.min
+  const progreso = rango > 0 ? Math.min((avance / rango) * 100, 100) : 100
+  return { actual, siguiente, progreso }
+}
+
 export default async function PatientDashboardPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const service = await createServiceClient()
@@ -15,189 +49,143 @@ export default async function PatientDashboardPage({ params }: { params: Promise
 
   if (!patient) notFound()
 
-  // Dispensas del ultimo año
-  const oneYearAgo = new Date()
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+  const [rankingMes, rankingAnio, rankingHistorico, topMes, topHistorico] = await Promise.all([
+    service.from("v_ranking_mes").select("*").eq("patient_id", patient.id).single(),
+    service.from("v_ranking_anio").select("*").eq("patient_id", patient.id).single(),
+    service.from("v_ranking_historico").select("*").eq("patient_id", patient.id).single(),
+    service.from("v_ranking_mes").select("full_name, total_grams").order("posicion").limit(3),
+    service.from("v_ranking_historico").select("full_name, total_grams").order("posicion").limit(3),
+  ])
 
-  const { data: dispenses } = await service
-    .from("dispenses")
-    .select("id, dispensed_at, grams, lot:lots(lot_code, seedling_date, harvest_date, drying_days, curing_days, genetic:genetics(name, strain_type, thc_percentage, cbd_percentage))")
-    .eq("patient_id", patient.id)
-    .gte("dispensed_at", oneYearAgo.toISOString())
-    .order("dispensed_at", { ascending: false })
-
-  const { data: allDispenses } = await service
-    .from("dispenses")
-    .select("id, grams")
-    .eq("patient_id", patient.id)
-
-  const dispenseList = (dispenses ?? []) as any[]
-  const allList = (allDispenses ?? []) as any[]
-
-  // Stats
-  const totalGramsYear = dispenseList.reduce((acc, d) => acc + (d.grams ?? 0), 0)
-  const totalDispenses = allList.length
-  const totalGramsAll = allList.reduce((acc, d) => acc + (d.grams ?? 0), 0)
-  const avgMonthly = totalGramsYear / 12
-
-  // Genetica mas consumida
-  const geneticCount: Record<string, number> = {}
-  for (const d of dispenseList) {
-    const name = d.lot?.genetic?.name ?? "Sin especificar"
-    geneticCount[name] = (geneticCount[name] ?? 0) + d.grams
+  const stats = {
+    totalMes: rankingMes.data?.total_grams ?? 0,
+    totalAnio: rankingAnio.data?.total_grams ?? 0,
+    totalHistorico: rankingHistorico.data?.total_grams ?? 0,
+    visitasMes: rankingMes.data?.visitas ?? 0,
+    visitasTotal: rankingHistorico.data?.visitas ?? 0,
+    geneticasProbadas: rankingHistorico.data?.geneticas_probadas ?? 0,
+    posicionMes: rankingMes.data?.posicion ?? 99,
+    posicionAnio: rankingAnio.data?.posicion ?? 99,
+    posicionHistorico: rankingHistorico.data?.posicion ?? 99,
+    primeraDispensa: rankingHistorico.data?.primera_dispensa ?? null,
+    mesesActivo: patient.created_at
+      ? Math.floor((Date.now() - new Date(patient.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30))
+      : 0,
   }
-  const topGenetic = Object.entries(geneticCount).sort((a, b) => b[1] - a[1])[0]
 
-  // Ultima visita
-  const lastDispense = dispenseList[0]
-  const daysSinceLast = lastDispense
-    ? Math.floor((Date.now() - new Date(lastDispense.dispensed_at).getTime()) / (1000 * 60 * 60 * 24))
-    : null
-
-  // Estado docs
-  const { data: docs } = await service
-    .from("patient_documents")
-    .select("status")
-    .eq("patient_id", patient.id)
-  const docsOk = (docs ?? []).every(d => d.status === "aprobado" || d.status === "pendiente_vinculacion")
-
+  const { actual: nivel, siguiente: nivelSig, progreso } = getNivelYProgreso(stats.totalHistorico)
+  const insignias = INSIGNIAS.filter(i => i.check(stats))
   const firstName = patient.full_name.split(" ")[0]
-  const plan = patient.membership_plan as any
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6">
-      <div className="max-w-sm mx-auto space-y-5">
+    <div style={{ minHeight: "100vh", background: "#080f09", color: "white", fontFamily: "system-ui, sans-serif", paddingBottom: "32px" }}>
 
-        {/* Header */}
-        <div className="text-center pt-4">
-          <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-3">
-            <span className="text-white text-sm font-bold">ONG</span>
+      <div style={{ background: "#0f2412", padding: "32px 20px 20px", textAlign: "center" }}>
+        <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: nivel.color, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: "24px", fontWeight: 800, border: "3px solid rgba(255,255,255,0.12)" }}>
+          {firstName[0]}
+        </div>
+        <div style={{ fontSize: "22px", fontWeight: 800, marginBottom: "8px" }}>{firstName}</div>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "20px", padding: "4px 14px", fontSize: "11px", color: nivel.color, fontWeight: 600 }}>
+          <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: nivel.color, display: "inline-block" }} />
+          Nivel {nivel.nombre}
+        </div>
+        {stats.primeraDispensa && <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.25)", marginTop: "8px" }}>Miembro desde {formatDate(stats.primeraDispensa)}</p>}
+      </div>
+
+      <div style={{ padding: "12px 16px 0", display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
+
+        <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "rgba(255,255,255,0.35)", marginBottom: "8px" }}>
+            <span>{nivel.nombre}</span>
+            <span>{nivelSig.nombre !== nivel.nombre ? `→ ${nivelSig.nombre} (${nivelSig.min}g)` : "Nivel maximo"}</span>
           </div>
-          <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Cannabis Medicinal</p>
-          <h1 className="text-3xl font-bold text-white">Hola, {firstName}</h1>
-          <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-green-500/20 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-xs text-green-400 font-medium">Socio activo</span>
+          <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px", height: "7px", overflow: "hidden" }}>
+            <div style={{ height: "100%", borderRadius: "8px", background: nivel.color, width: `${progreso}%` }} />
           </div>
+          <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.25)", marginTop: "6px", textAlign: "right" }}>{formatGrams(stats.totalHistorico)} totales</p>
         </div>
 
-        {/* Stat principal - gramos año */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 border border-slate-700 text-center">
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Ultimo año</p>
-          <p className="text-5xl font-black text-white mb-1">{totalGramsYear.toFixed(0)}<span className="text-2xl text-slate-400 font-normal">g</span></p>
-          <p className="text-sm text-slate-400">consumidos en 12 meses</p>
-          {plan?.monthly_grams && (
-            <div className="mt-3 bg-slate-700/50 rounded-xl p-3">
-              <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>Uso mensual</span>
-                <span>{avgMonthly.toFixed(1)}g / {plan.monthly_grams}g</span>
-              </div>
-              <div className="w-full bg-slate-600 rounded-full h-2">
-                <div
-                  className="h-2 rounded-full bg-green-400 transition-all"
-                  style={{ width: `${Math.min((avgMonthly / plan.monthly_grams) * 100, 100)}%` }}
-                />
-              </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+          {[
+            { label: "Este mes",  value: formatGrams(stats.totalMes),       sub: `#${stats.posicionMes} del club` },
+            { label: "Este año",  value: formatGrams(stats.totalAnio),      sub: `#${stats.posicionAnio} del club` },
+            { label: "Historico", value: formatGrams(stats.totalHistorico), sub: `#${stats.posicionHistorico} del club` },
+          ].map((s, i) => (
+            <div key={i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "12px 8px", textAlign: "center" }}>
+              <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>{s.label}</p>
+              <p style={{ fontSize: "16px", fontWeight: 800, color: "white", lineHeight: 1, margin: 0 }}>{s.value}</p>
+              <p style={{ fontSize: "10px", color: "#4d7a46", marginTop: "4px", margin: 0 }}>{s.sub}</p>
             </div>
-          )}
+          ))}
         </div>
 
-        {/* Grid de stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <p className="text-2xl font-bold text-white">{totalDispenses}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Retiros totales</p>
-          </div>
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <p className="text-2xl font-bold text-white">{totalGramsAll.toFixed(0)}<span className="text-base text-slate-400">g</span></p>
-            <p className="text-xs text-slate-400 mt-0.5">Acumulado total</p>
-          </div>
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <p className="text-2xl font-bold text-white">{avgMonthly.toFixed(1)}<span className="text-base text-slate-400">g</span></p>
-            <p className="text-xs text-slate-400 mt-0.5">Promedio mensual</p>
-          </div>
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <p className="text-2xl font-bold text-white">{daysSinceLast ?? "—"}<span className="text-base text-slate-400">{daysSinceLast !== null ? "d" : ""}</span></p>
-            <p className="text-xs text-slate-400 mt-0.5">Desde ultima visita</p>
-          </div>
-        </div>
-
-        {/* Genetica preferida */}
-        {topGenetic && (
-          <div className="bg-green-950/40 rounded-2xl p-5 border border-green-800/50">
-            <p className="text-xs text-green-400 uppercase tracking-wide mb-2">Genetica preferida</p>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xl font-bold text-white">{topGenetic[0]}</p>
-                <p className="text-xs text-slate-400">{topGenetic[1].toFixed(1)}g consumidos</p>
-              </div>
-              <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                <span className="text-xl">🌿</span>
-              </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+          {[
+            { label: "Visitas", value: stats.visitasTotal, sub: `${stats.visitasMes} este mes` },
+            { label: "Geneticas", value: stats.geneticasProbadas, sub: "probadas" },
+          ].map((s, i) => (
+            <div key={i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "14px", textAlign: "center" }}>
+              <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>{s.label}</p>
+              <p style={{ fontSize: "26px", fontWeight: 800, color: "white", lineHeight: 1, margin: 0 }}>{s.value}</p>
+              <p style={{ fontSize: "10px", color: "#4d7a46", marginTop: "4px", margin: 0 }}>{s.sub}</p>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
 
-        {/* Historial reciente */}
-        {dispenseList.length > 0 && (
-          <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
-            <p className="text-xs text-slate-400 uppercase tracking-wide mb-3">Ultimas visitas</p>
-            <div className="space-y-2">
-              {dispenseList.slice(0, 5).map((d: any) => (
-                <div key={d.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                  <div>
-                    <div className="flex-1">
-                      <p className="text-sm text-white font-medium">{d.lot?.genetic?.name ?? "Flor seca"}</p>
-                      <p className="text-xs text-slate-500">{formatDate(d.dispensed_at)}</p>
-                      <div className="flex gap-2 mt-1 flex-wrap">
-                        {d.lot?.genetic?.thc_percentage && (
-                          <span className="text-[10px] bg-purple-900/40 text-purple-300 border border-purple-800/50 rounded-full px-2 py-0.5">THC {d.lot.genetic.thc_percentage}%</span>
-                        )}
-                        {d.lot?.genetic?.cbd_percentage && (
-                          <span className="text-[10px] bg-green-900/40 text-green-300 border border-green-800/50 rounded-full px-2 py-0.5">CBD {d.lot.genetic.cbd_percentage}%</span>
-                        )}
-                        {d.lot?.curing_days && (
-                          <span className="text-[10px] bg-amber-900/40 text-amber-300 border border-amber-800/50 rounded-full px-2 py-0.5">{d.lot.curing_days}d curado</span>
-                        )}
-                        {d.lot?.lot_code && (
-                          <span className="text-[10px] bg-white/5 text-slate-400 border border-white/10 rounded-full px-2 py-0.5 font-mono">{d.lot.lot_code}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-sm font-medium text-slate-300">{formatGrams(d.grams)}</span>
+        {insignias.length > 0 && (
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#d97706", marginBottom: "10px", textTransform: "uppercase" }}>Insignias</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {insignias.map(ins => (
+                <div key={ins.id} style={{ background: "rgba(217,119,6,0.15)", border: "1px solid rgba(217,119,6,0.3)", borderRadius: "12px", padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "13px", color: "#fcd34d" }}>{ins.icon}</span>
+                  <span style={{ fontSize: "11px", color: "#fcd34d", fontWeight: 500 }}>{ins.label}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Estado documental */}
-        <div className={`rounded-2xl p-4 border ${docsOk ? "bg-green-950/30 border-green-800/50" : "bg-amber-950/30 border-amber-800/50"}`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide">Documentacion</p>
-              <p className={`text-sm font-medium mt-0.5 ${docsOk ? "text-green-400" : "text-amber-400"}`}>
-                {docsOk ? "Todo en orden" : "Requiere atencion"}
-              </p>
-            </div>
-            <span className="text-2xl">{docsOk ? "✓" : "⚠"}</span>
-          </div>
-        </div>
-
-        {/* Membresia */}
-        {plan && (
-          <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
-            <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Tu plan</p>
-            <p className="text-lg font-bold text-white">{plan.name}</p>
-            {plan.monthly_grams && (
-              <p className="text-sm text-slate-400">{plan.monthly_grams}g por mes incluidos</p>
-            )}
+        {topMes.data && topMes.data.length > 0 && (
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#7c3aed", marginBottom: "12px", textTransform: "uppercase" }}>Top del mes</p>
+            {topMes.data.map((p: any, i: number) => {
+              const medals = ["🥇", "🥈", "🥉"]
+              const isMe = p.full_name === patient.full_name
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: i < topMes.data!.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "15px" }}>{medals[i]}</span>
+                    <span style={{ fontSize: "13px", fontWeight: isMe ? 700 : 400, color: isMe ? "#7dc264" : "white" }}>{p.full_name.split(" ")[0]}{isMe ? " (vos)" : ""}</span>
+                  </div>
+                  <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", fontFamily: "monospace" }}>{formatGrams(p.total_grams)}</span>
+                </div>
+              )
+            })}
           </div>
         )}
 
-        <p className="text-center text-xs text-slate-700 pb-4">
-          Miembro desde {formatDate(patient.created_at)} · Uso exclusivamente medicinal
+        {topHistorico.data && topHistorico.data.length > 0 && (
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#dc2626", marginBottom: "12px", textTransform: "uppercase" }}>Hall of Fame</p>
+            {topHistorico.data.map((p: any, i: number) => {
+              const medals = ["🥇", "🥈", "🥉"]
+              const isMe = p.full_name === patient.full_name
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: i < topHistorico.data!.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "15px" }}>{medals[i]}</span>
+                    <span style={{ fontSize: "13px", fontWeight: isMe ? 700 : 400, color: isMe ? "#7dc264" : "white" }}>{p.full_name.split(" ")[0]}{isMe ? " (vos)" : ""}</span>
+                  </div>
+                  <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", fontFamily: "monospace" }}>{formatGrams(p.total_grams)}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <p style={{ textAlign: "center", fontSize: "11px", color: "rgba(255,255,255,0.15)", paddingBottom: "8px" }}>
+          Circulo Esmeralda · Cannabis Medicinal
         </p>
       </div>
     </div>
