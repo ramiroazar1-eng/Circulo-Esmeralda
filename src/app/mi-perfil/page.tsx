@@ -80,6 +80,18 @@ export default async function MiPerfilPage() {
   const firstName = patient.full_name.split(" ")[0]
   const isActive = patient.status === "activo"
 
+
+  const now = new Date()
+  const currentMonth = now.getMonth() + 1
+  const currentYear = now.getFullYear()
+  const { data: currentPayment } = await supabase
+    .from("membership_payments")
+    .select("id, amount, payment_date, payment_method")
+    .eq("patient_id", patient.id)
+    .eq("period_month", currentMonth)
+    .eq("period_year", currentYear)
+    .maybeSingle()
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <div className="max-w-sm mx-auto px-4 py-6 space-y-5">
