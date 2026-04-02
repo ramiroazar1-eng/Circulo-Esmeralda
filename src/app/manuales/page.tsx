@@ -5,7 +5,7 @@ import { BackButton } from "@/components/ui/BackButton"
 import { BookOpen } from "lucide-react"
 import UploadManualButton from "./UploadManualButton"
 import DeleteManualButton from "./DeleteManualButton"
-import ViewFileButton from "@/app/documentacion-ong/ViewFileButton"
+import ViewManualButton from "./ViewManualButton"
 
 const CATEGORY_LABELS: Record<string, string> = {
   general: "General",
@@ -72,7 +72,7 @@ export default async function ManualesPage() {
                     <td className="text-[#9ab894]">{m.uploaded_by_profile?.full_name ?? "—"}</td>
                     <td>
                       {m.file_path && (
-                        <ViewFileButton filePath={m.file_path} bucketName="manuales" />
+                        <ViewManualButton filePath={m.file_path} />
                       )}
                     </td>
                     <td>
