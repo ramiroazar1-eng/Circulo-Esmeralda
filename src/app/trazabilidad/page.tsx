@@ -5,7 +5,21 @@ import { BackButton } from "@/components/ui/BackButton"
 import { formatDate, formatGrams } from "@/lib/utils"
 import { Package, FlaskConical } from "lucide-react"
 import NewLotModal from "./NewLotModal"
+import EditLotModal from "./EditLotModal"
 import QRDisplay from "@/components/qr/QRDisplay"
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  plantines:  { label: "Plantines",  color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  vegetativo: { label: "Vegetativo", color: "bg-green-50 text-green-700 border-green-200" },
+  poda:       { label: "Poda",       color: "bg-lime-50 text-lime-700 border-lime-200" },
+  floracion:  { label: "Floracion",  color: "bg-purple-50 text-purple-700 border-purple-200" },
+  cosecha:    { label: "Cosecha",    color: "bg-amber-50 text-amber-700 border-amber-200" },
+  secado:     { label: "Secado",     color: "bg-orange-50 text-orange-700 border-orange-200" },
+  curado:     { label: "Curado",     color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+  finalizado: { label: "Finalizado", color: "bg-[#edf7e8] text-[#2d6a1f] border-[#b8daa8]" },
+  descartado: { label: "Descartado", color: "bg-slate-50 text-slate-500 border-slate-200" },
+  agotado:    { label: "Agotado",    color: "bg-red-50 text-red-700 border-red-200" },
+}
 
 export default async function TrazabilidadPage() {
   const supabase = await createClient()
@@ -13,7 +27,7 @@ export default async function TrazabilidadPage() {
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  const canCreate = ["admin","biologo"].includes(profile?.role ?? "")
+  const canEdit = ["admin","biologo","administrativo"].includes(profile?.role ?? "")
 
   const { data: lots } = await supabase
     .from("lots")
@@ -26,7 +40,7 @@ export default async function TrazabilidadPage() {
 
   const totalStock = (stockData ?? []).reduce((acc, s) => acc + (s.available_grams ?? 0), 0)
   const lotsList = (lots ?? []) as any[]
-  const enProceso = lotsList.filter(l => l.status === "en_proceso").length
+  const enProceso = lotsList.filter(l => !["finalizado","descartado","agotado"].includes(l.status)).length
   const finalizados = lotsList.filter(l => l.status === "finalizado").length
 
   return (
@@ -35,20 +49,16 @@ export default async function TrazabilidadPage() {
       <PageHeader
         title="Trazabilidad"
         description="Lotes de produccion y movimientos de stock"
-        actions={canCreate ? <NewLotModal genetics={genetics ?? []} rooms={rooms ?? []} /> : undefined}
+        actions={canEdit ? <NewLotModal genetics={genetics ?? []} rooms={rooms ?? []} /> : undefined}
       />
       <div className="grid grid-cols-3 gap-3">
         <StatCard label="Lotes en proceso" value={enProceso} icon={FlaskConical} />
-        <StatCard label="Lotes finalizados" value={finalizados} icon={Package} />
+        <StatCard label="Lotes finalizados" value={finalizados} icon={Package} variant="ok" />
         <StatCard label="Stock total disponible" value={formatGrams(totalStock)} />
       </div>
       <Card padding={false}>
         {lotsList.length === 0 ? (
-          <EmptyState
-            title="Sin lotes registrados"
-            description="Crea el primer lote con el boton de arriba."
-            icon={FlaskConical}
-          />
+          <EmptyState title="Sin lotes registrados" description="Crea el primer lote con el boton de arriba." icon={FlaskConical} />
         ) : (
           <Table>
             <thead>
@@ -61,38 +71,41 @@ export default async function TrazabilidadPage() {
                 <th>Estado</th>
                 <th>Stock disponible</th>
                 <th>QR</th>
+                {canEdit && <th></th>}
               </tr>
             </thead>
             <tbody>
-              {lotsList.map((lot: any) => (
-                <tr key={lot.id}>
-                  <td className="font-mono font-medium">{lot.lot_code}</td>
-                  <td>{lot.genetic?.name ?? "—"}</td>
-                  <td>{lot.room?.name ?? "—"}</td>
-                  <td>{formatDate(lot.start_date)}</td>
-                  <td>{lot.harvest_date ? formatDate(lot.harvest_date) : <span className="text-slate-400">—</span>}</td>
-                  <td>
-                    <span className={`text-xs rounded px-1.5 py-0.5 border ${
-                      lot.status === "finalizado" ? "bg-green-50 text-green-700 border-green-200" :
-                      lot.status === "en_proceso" ? "bg-amber-50 text-amber-700 border-amber-200" :
-                      "bg-slate-50 text-slate-500 border-slate-200"
-                    }`}>
-                      {lot.status === "en_proceso" ? "En proceso" : lot.status === "finalizado" ? "Finalizado" : "Descartado"}
-                    </span>
-                  </td>
-                  <td className="tabular-nums font-medium">
-                    {lot.stock_position ? formatGrams(lot.stock_position.available_grams) : "—"}
-                  </td>
-                  <td>
-                    <QRDisplay
-                      entityId={lot.id}
-                      entityType="lot"
-                      entityName={lot.lot_code}
-                      currentToken={lot.qr_token}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {lotsList.map((lot: any) => {
+                const statusConfig = STATUS_LABELS[lot.status] ?? { label: lot.status, color: "bg-slate-50 text-slate-500 border-slate-200" }
+                return (
+                  <tr key={lot.id}>
+                    <td className="font-mono font-medium"><a href={`/trazabilidad/${lot.id}`} className="text-[#2d5a27] hover:underline">{lot.lot_code}</a></td>
+                    <td>{lot.genetic?.name ?? "—"}</td>
+                    <td>{lot.room?.name ?? "—"}</td>
+                    <td>{lot.start_date ? formatDate(lot.start_date) : "—"}</td>
+                    <td>{lot.harvest_date ? formatDate(lot.harvest_date) : <span className="text-[#9ab894]">—</span>}</td>
+                    <td>
+                      <span className={`text-xs rounded-full px-2.5 py-1 font-bold border ${statusConfig.color}`}>
+                        {statusConfig.label}
+                      </span>
+                    </td>
+                    <td className="tabular-nums font-medium">
+                      {lot.stock_position
+                        ? <span className="text-[#2d6a1f] font-bold">{formatGrams(lot.stock_position.available_grams)}</span>
+                        : <span className="text-[#9ab894]">{["finalizado","agotado"].includes(lot.status) ? "0.0g" : "En proceso"}</span>
+                      }
+                    </td>
+                    <td>
+                      <QRDisplay entityId={lot.id} entityType="lot" entityName={lot.lot_code} currentToken={lot.qr_token} />
+                    </td>
+                    {canEdit && (
+                      <td>
+                        <EditLotModal lot={lot} genetics={genetics ?? []} rooms={rooms ?? []} />
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
             </tbody>
           </Table>
         )}
