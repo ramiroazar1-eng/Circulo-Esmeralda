@@ -11,32 +11,11 @@ interface Props {
   rooms: { id: string; name: string }[]
 }
 
-const STATUS_OPTIONS = [
-  { value: "plantines",   label: "Plantines" },
-  { value: "vegetativo",  label: "Vegetativo" },
-  { value: "poda",        label: "Poda" },
-  { value: "floracion",   label: "Floracion" },
-  { value: "cosecha",     label: "Cosecha" },
-  { value: "secado",      label: "Secado" },
-  { value: "curado",      label: "Curado" },
-  { value: "finalizado",  label: "Finalizado" },
-  { value: "descartado",  label: "Descartado" },
-]
-
 export default function EditLotModal({ lot, genetics, rooms }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [cycles, setCycles] = useState<any[]>([])
   const router = useRouter()
-
-  useEffect(() => {
-    if (open) {
-      const supabase = createClient()
-      supabase.from("production_cycles").select("id, name").eq("status", "activo").order("start_date", { ascending: false })
-        .then(({ data }) => setCycles(data ?? []))
-    }
-  }, [open])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setLoading(true); setError(null)
@@ -46,10 +25,6 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
     const { error: err } = await supabase.from("lots").update({
       genetic_id:         form.get("genetic_id") || null,
       room_id:            form.get("room_id") || null,
-      cycle_id:           form.get("cycle_id") || null,
-      status:             form.get("status"),
-      start_date:         form.get("start_date") || null,
-      harvest_date:       form.get("harvest_date") || null,
       gross_grams:        parseFloat(form.get("gross_grams") as string) || null,
       net_grams:          parseFloat(form.get("net_grams") as string) || null,
       waste_grams:        parseFloat(form.get("waste_grams") as string) || null,
@@ -57,6 +32,7 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
       veg_date:           form.get("veg_date") || null,
       pruning_date:       form.get("pruning_date") || null,
       flower_date:        form.get("flower_date") || null,
+      harvest_date:       form.get("harvest_date") || null,
       drying_start_date:  form.get("drying_start_date") || null,
       drying_days:        parseInt(form.get("drying_days") as string) || null,
       curing_start_date:  form.get("curing_start_date") || null,
@@ -108,21 +84,8 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
                     {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="label-ong">Ciclo de produccion</label>
-                  <select name="cycle_id" defaultValue={lot.cycle_id ?? ""} className="input-ong">
-                    <option value="">Sin asignar</option>
-                    {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label-ong">Estado *</label>
-                  <select name="status" required defaultValue={lot.status} className="input-ong">
-                    {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                  <p className="text-xs text-[#9ab894] mt-1">Al finalizar se genera el stock automaticamente.</p>
-                </div>
               </div>
+              <p className="text-xs text-[#9ab894] mt-2">El estado se actualiza automaticamente segun las fechas que cargues.</p>
             </div>
 
             <div className="border-t border-[#eef5ea] pt-4">
@@ -132,7 +95,6 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
                 <div><label className="label-ong">Inicio vegetativo</label><input name="veg_date" type="date" defaultValue={lot.veg_date ?? ""} className="input-ong" /></div>
                 <div><label className="label-ong">Fecha poda</label><input name="pruning_date" type="date" defaultValue={lot.pruning_date ?? ""} className="input-ong" /></div>
                 <div><label className="label-ong">Inicio floracion</label><input name="flower_date" type="date" defaultValue={lot.flower_date ?? ""} className="input-ong" /></div>
-                <div><label className="label-ong">Fecha de inicio</label><input name="start_date" type="date" defaultValue={lot.start_date ?? ""} className="input-ong" /></div>
                 <div><label className="label-ong">Fecha de cosecha</label><input name="harvest_date" type="date" defaultValue={lot.harvest_date ?? ""} className="input-ong" /></div>
               </div>
             </div>
