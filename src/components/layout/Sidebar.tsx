@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/bitacora", label: "Bitacora", icon: BookOpen, roles: ["admin","administrativo","medico","biologo"] },
   { href: "/exportar", label: "Exportar", icon: FileDown, roles: ["admin","administrativo"] },
   { href: "/manuales", label: "Manuales", icon: BookOpen, roles: ["admin","administrativo"] },
+  { href: "/ciclos", label: "Ciclos de produccion", icon: FlaskConical, roles: ["admin","administrativo","biologo"] },
 ]
 
 const ADMIN_ITEMS = [
