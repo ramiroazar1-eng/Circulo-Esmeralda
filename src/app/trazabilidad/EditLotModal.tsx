@@ -34,7 +34,6 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
       flower_date:        form.get("flower_date") || null,
       harvest_date:       form.get("harvest_date") || null,
       drying_start_date:  form.get("drying_start_date") || null,
-      drying_days:        parseInt(form.get("drying_days") as string) || null,
       curing_start_date:  form.get("curing_start_date") || null,
       curing_days:        parseInt(form.get("curing_days") as string) || null,
       notes:              form.get("notes") || null,
@@ -103,7 +102,7 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
               <p className="text-[10px] font-bold text-[#5a8a52] uppercase tracking-widest mb-3">Secado y curado</p>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label-ong">Inicio secado</label><input name="drying_start_date" type="date" defaultValue={lot.drying_start_date ?? ""} className="input-ong" /></div>
-                <div><label className="label-ong">Dias de secado</label><input name="drying_days" type="number" min="0" defaultValue={lot.drying_days ?? ""} className="input-ong" placeholder="Ej: 14" /></div>
+                
                 <div><label className="label-ong">Inicio curado</label><input name="curing_start_date" type="date" defaultValue={lot.curing_start_date ?? ""} className="input-ong" /></div>
                 <div><label className="label-ong">Dias de curado</label><input name="curing_days" type="number" min="0" defaultValue={lot.curing_days ?? ""} className="input-ong" placeholder="Ej: 30" /></div>
               </div>
