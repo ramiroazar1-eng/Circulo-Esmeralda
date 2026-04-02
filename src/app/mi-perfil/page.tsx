@@ -200,6 +200,23 @@ export default async function MiPerfilPage() {
           </div>
         )}
 
+
+        {/* Estado membresia del mes */}
+        {plan && (
+          <div className={`rounded-2xl p-5 border ${currentPayment ? "bg-green-950/30 border-green-800/50" : "bg-red-950/30 border-red-800/50"}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Membresia {MONTHS_SHORT[now.getMonth()]} {now.getFullYear()}</p>
+                <p className={`text-sm font-semibold ${currentPayment ? "text-green-400" : "text-red-400"}`}>
+                  {currentPayment ? `Pagado el ${new Date(currentPayment.payment_date).toLocaleDateString("es-AR")}` : "Pago pendiente"}
+                </p>
+                {currentPayment && <p className="text-xs text-slate-500 mt-0.5 capitalize">{currentPayment.payment_method}</p>}
+              </div>
+              <span className="text-2xl">{currentPayment ? "✓" : "!"}</span>
+            </div>
+          </div>
+        )}
+
         <p className="text-center text-xs text-slate-700 pb-4">
           Socio desde {formatDate(patient.created_at)} · Uso exclusivamente medicinal
         </p>
