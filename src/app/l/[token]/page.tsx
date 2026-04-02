@@ -3,21 +3,21 @@ import { notFound } from "next/navigation"
 import { formatDate } from "@/lib/utils"
 
 const TIMELINE_STEPS = [
-  { key: "seedling_date",     label: "Plantines",  color: "#10b981" },
-  { key: "veg_date",          label: "Vegetativo", color: "#22c55e" },
-  { key: "pruning_date",      label: "Poda",       color: "#84cc16" },
-  { key: "flower_date",       label: "Floracion",  color: "#a855f7" },
-  { key: "harvest_date",      label: "Cosecha",    color: "#f59e0b" },
-  { key: "drying_start_date", label: "Secado",     color: "#f97316" },
-  { key: "curing_start_date", label: "Curado",     color: "#eab308" },
+  { key: "seedling_date",     label: "Plantines",  color: "#2d5a27" },
+  { key: "veg_date",          label: "Vegetativo", color: "#2d5a27" },
+  { key: "pruning_date",      label: "Poda",       color: "#2d5a27" },
+  { key: "flower_date",       label: "Floracion",  color: "#7c3aed" },
+  { key: "harvest_date",      label: "Cosecha",    color: "#d97706" },
+  { key: "drying_start_date", label: "Secado",     color: "#ea580c" },
+  { key: "curing_start_date", label: "Curado",     color: "#ca8a04" },
 ]
 
-const STRAIN_LABELS: Record<string, { label: string; color: string }> = {
-  indica:         { label: "Indica",                     color: "background:rgba(88,28,135,0.4);color:#d8b4fe;border:1px solid rgba(147,51,234,0.4)" },
-  sativa:         { label: "Sativa",                     color: "background:rgba(120,53,15,0.4);color:#fcd34d;border:1px solid rgba(217,119,6,0.4)" },
-  hibrida:        { label: "Hibrida",                    color: "background:rgba(6,78,59,0.4);color:#6ee7b7;border:1px solid rgba(16,185,129,0.4)" },
-  hibrida_indica: { label: "Hibrida / Predominante Indica", color: "background:rgba(88,28,135,0.3);color:#d8b4fe;border:1px solid rgba(147,51,234,0.3)" },
-  hibrida_sativa: { label: "Hibrida / Predominante Sativa", color: "background:rgba(120,53,15,0.3);color:#fcd34d;border:1px solid rgba(217,119,6,0.3)" },
+const STRAIN_LABELS: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  indica:         { label: "Indica",                     bg: "rgba(88,28,135,0.5)",  color: "#d8b4fe", border: "rgba(147,51,234,0.4)" },
+  sativa:         { label: "Sativa",                     bg: "rgba(120,53,15,0.5)",  color: "#fcd34d", border: "rgba(217,119,6,0.4)" },
+  hibrida:        { label: "Hibrida",                    bg: "rgba(6,78,59,0.5)",    color: "#6ee7b7", border: "rgba(16,185,129,0.4)" },
+  hibrida_indica: { label: "Hibrida / Indica",           bg: "rgba(88,28,135,0.4)",  color: "#d8b4fe", border: "rgba(147,51,234,0.3)" },
+  hibrida_sativa: { label: "Hibrida / Sativa",           bg: "rgba(120,53,15,0.4)",  color: "#fcd34d", border: "rgba(217,119,6,0.3)" },
 }
 
 export default async function PublicLotPage({ params }: { params: Promise<{ token: string }> }) {
@@ -46,52 +46,46 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
   })
 
   const completedSteps = steps.filter(s => s.date).length
-  const totalDays = steps[0]?.date && steps[steps.length - 1]?.date
-    ? Math.round((new Date(steps.filter(s => s.date).slice(-1)[0].date).getTime() - new Date(steps[0].date).getTime()) / (1000 * 60 * 60 * 24))
-    : null
 
   return (
-    <div className="min-h-screen bg-[#080f09] text-white">
-      <div className="relative h-56 overflow-hidden">
+    <div style={{ minHeight: "100vh", background: "#080f09", color: "white", fontFamily: "system-ui, sans-serif" }}>
+
+      {/* Hero */}
+      <div style={{ position: "relative", height: "220px", overflow: "hidden" }}>
         {genetic?.photo_url
-          ? <img src={genetic.photo_url} alt={genetic.name} className="w-full h-full object-cover opacity-60" />
-          : <div className="w-full h-full bg-gradient-to-br from-[#0f2412] to-[#080f09]" />
+          ? <img src={genetic.photo_url} alt={genetic.name} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.6 }} />
+          : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #0f2412, #080f09)" }} />
         }
-        <div className="absolute inset-0 bg-gradient-to-t from-[#080f09] via-[#080f09]/60 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 px-5 pb-5">
-          <div className="flex items-end justify-between">
-            <div>
-              {strain && (
-                <span style={Object.fromEntries(strain.color.split(";").map((s: string) => s.split(":")))}
-                  className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold mb-2">
-                  {strain.label}
-                </span>
-              )}
-              <h1 className="text-3xl font-black text-white">{genetic?.name ?? "Flor seca"}</h1>
-              <p className="text-[#4d7a46] text-sm mt-0.5">Produccion propia · Uso medicinal exclusivo</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-[#2d5a27] flex items-center justify-center border border-[#4d8a3d] shrink-0">
-              <div className="w-4 h-4 rounded-full border-2 border-[#7dc264]" />
-            </div>
-          </div>
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #080f09 0%, rgba(8,15,9,0.5) 50%, transparent 100%)" }} />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 20px 20px" }}>
+          {strain && (
+            <span style={{ display: "inline-block", background: strain.bg, color: strain.color, border: `1px solid ${strain.border}`, borderRadius: "20px", fontSize: "11px", fontWeight: 600, padding: "3px 12px", marginBottom: "8px", letterSpacing: "0.3px" }}>
+              {strain.label}
+            </span>
+          )}
+          <div style={{ fontSize: "28px", fontWeight: 800, lineHeight: 1.1 }}>{genetic?.name ?? "Flor seca"}</div>
+          <div style={{ fontSize: "12px", color: "#4d7a46", marginTop: "4px" }}>Produccion propia · Uso medicinal exclusivo</div>
+        </div>
+        <div style={{ position: "absolute", top: "16px", right: "16px", width: "36px", height: "36px", borderRadius: "10px", background: "#2d5a27", border: "1px solid #4d8a3d", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: "14px", height: "14px", borderRadius: "50%", border: "2px solid #7dc264" }} />
         </div>
       </div>
 
-      <div className="max-w-sm mx-auto px-4 py-5 space-y-4">
+      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
 
         {/* THC / CBD */}
         {(genetic?.thc_percentage || genetic?.cbd_percentage) && (
-          <div className="grid grid-cols-2 gap-3">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             {genetic?.thc_percentage && (
-              <div className="bg-purple-950/40 border border-purple-800/50 rounded-2xl p-4 text-center">
-                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">THC</p>
-                <p className="text-3xl font-black text-white">{genetic.thc_percentage}<span className="text-lg text-purple-400">%</span></p>
+              <div style={{ background: "rgba(88,28,135,0.25)", border: "1px solid rgba(147,51,234,0.3)", borderRadius: "16px", padding: "16px", textAlign: "center" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#d8b4fe", marginBottom: "6px" }}>THC</div>
+                <div style={{ fontSize: "32px", fontWeight: 800, color: "white", lineHeight: 1 }}>{genetic.thc_percentage}<span style={{ fontSize: "16px", opacity: 0.5 }}>%</span></div>
               </div>
             )}
             {genetic?.cbd_percentage && (
-              <div className="bg-green-950/40 border border-green-800/50 rounded-2xl p-4 text-center">
-                <p className="text-[10px] font-bold text-green-400 uppercase tracking-widest mb-1">CBD</p>
-                <p className="text-3xl font-black text-white">{genetic.cbd_percentage}<span className="text-lg text-green-400">%</span></p>
+              <div style={{ background: "rgba(6,78,59,0.25)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "16px", padding: "16px", textAlign: "center" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#6ee7b7", marginBottom: "6px" }}>CBD</div>
+                <div style={{ fontSize: "32px", fontWeight: 800, color: "white", lineHeight: 1 }}>{genetic.cbd_percentage}<span style={{ fontSize: "16px", opacity: 0.5 }}>%</span></div>
               </div>
             )}
           </div>
@@ -99,11 +93,11 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
 
         {/* Terpenos */}
         {genetic?.terpenes && (
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-2">Perfil de terpenos</p>
-            <div className="flex flex-wrap gap-2">
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#d97706", marginBottom: "10px" }}>TERPENOS</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
               {genetic.terpenes.split(",").map((t: string, i: number) => (
-                <span key={i} className="px-2.5 py-1 bg-amber-900/30 border border-amber-800/50 rounded-full text-[11px] text-amber-300 font-medium">{t.trim()}</span>
+                <span key={i} style={{ background: "rgba(120,53,15,0.4)", color: "#fcd34d", border: "1px solid rgba(217,119,6,0.3)", borderRadius: "20px", fontSize: "12px", padding: "4px 12px" }}>{t.trim()}</span>
               ))}
             </div>
           </div>
@@ -111,11 +105,11 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
 
         {/* Efectos */}
         {genetic?.effects && (
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Efectos</p>
-            <div className="flex flex-wrap gap-2">
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#93c5fd", marginBottom: "10px" }}>EFECTOS</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
               {genetic.effects.split(",").map((e: string, i: number) => (
-                <span key={i} className="px-2.5 py-1 bg-blue-900/30 border border-blue-800/50 rounded-full text-[11px] text-blue-300 font-medium">{e.trim()}</span>
+                <span key={i} style={{ background: "rgba(30,58,138,0.4)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.3)", borderRadius: "20px", fontSize: "12px", padding: "4px 12px" }}>{e.trim()}</span>
               ))}
             </div>
           </div>
@@ -123,11 +117,11 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
 
         {/* Usos medicinales */}
         {genetic?.medical_uses && (
-          <div className="bg-green-950/30 rounded-2xl p-4 border border-green-900/50">
-            <p className="text-[10px] font-bold text-green-400 uppercase tracking-widest mb-2">Usos medicinales</p>
-            <div className="flex flex-wrap gap-2">
+          <div style={{ background: "rgba(6,78,59,0.15)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "16px", padding: "14px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#6ee7b7", marginBottom: "10px" }}>USOS MEDICINALES</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
               {genetic.medical_uses.split(",").map((u: string, i: number) => (
-                <span key={i} className="px-2.5 py-1 bg-green-900/40 border border-green-800/50 rounded-full text-[11px] text-green-300 font-medium">{u.trim()}</span>
+                <span key={i} style={{ background: "rgba(6,78,59,0.4)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "20px", fontSize: "12px", padding: "4px 12px" }}>{u.trim()}</span>
               ))}
             </div>
           </div>
@@ -135,37 +129,30 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
 
         {/* Timeline */}
         {completedSteps > 0 && (
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold text-[#5a8a52] uppercase tracking-widest">Proceso de produccion</p>
-              {totalDays && <p className="text-[10px] text-slate-400">{totalDays} dias totales</p>}
-            </div>
-            <div className="space-y-0">
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#4d7a46", marginBottom: "14px" }}>PROCESO DE PRODUCCION</div>
+            <div>
               {steps.map((step, i) => (
-                <div key={step.key} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                      style={{ background: step.date ? step.color : "rgba(255,255,255,0.05)", border: step.date ? "none" : "1px solid rgba(255,255,255,0.1)" }}>
-                      {step.date
-                        ? <span className="text-white text-[9px] font-bold">✓</span>
-                        : <span className="text-slate-600 text-[9px]">{i + 1}</span>
-                      }
-                    </div>
-                    {i < steps.length - 1 && (
-                      <div className="w-px flex-1 my-0.5" style={{ background: step.date ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)", minHeight: "16px" }} />
-                    )}
+                <div key={step.key} style={{ display: "flex", gap: "10px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "20px", flexShrink: 0 }}>
+                    <div style={{ width: "8px", height: "8px", borderRadius: "50%", marginTop: "4px", flexShrink: 0, background: step.date ? step.color : "rgba(255,255,255,0.1)", border: step.date ? "none" : "1px solid rgba(255,255,255,0.15)" }} />
+                    {i < steps.length - 1 && <div style={{ width: "1px", flex: 1, background: "rgba(255,255,255,0.06)", minHeight: "20px", margin: "2px 0" }} />}
                   </div>
-                  <div className="pb-3 flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className={`text-[12px] font-semibold ${step.date ? "text-white" : "text-slate-600"}`}>{step.label}</p>
-                      {step.date && <p className="text-[10px] text-slate-400">{formatDate(step.date)}</p>}
+                  <div style={{ flex: 1, paddingBottom: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span style={{ fontSize: "13px", fontWeight: 500, color: step.date ? "white" : "rgba(255,255,255,0.2)" }}>{step.label}</span>
+                      {step.date && <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>{formatDate(step.date)}</span>}
                     </div>
                     {step.days !== null && step.days > 0 && (
-                      <p className="text-[10px] text-slate-500 mt-0.5">{step.days} dias</p>
+                      <div style={{ fontSize: "11px", color: "#4d7a46", marginTop: "2px" }}>{step.days} dias</div>
                     )}
-                    {step.key === "curing_start_date" && lot.curing_days && (
-                      <p className="text-[10px] text-slate-500 mt-0.5">{lot.curing_days} dias de curado</p>
+                    {step.key === "drying_start_date" && (lot as any).drying_days && (
+                      <div style={{ fontSize: "11px", color: "#4d7a46", marginTop: "2px" }}>{(lot as any).drying_days} dias de secado</div>
                     )}
+                    {step.key === "curing_start_date" && (lot as any).curing_days && (
+                      <div style={{ fontSize: "11px", color: "#4d7a46", marginTop: "2px" }}>{(lot as any).curing_days} dias de curado</div>
+                    )}
+                    {!step.date && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.15)", marginTop: "2px" }}>Pendiente</div>}
                   </div>
                 </div>
               ))}
@@ -173,32 +160,13 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
           </div>
         )}
 
-        {/* Trazabilidad */}
-        <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-          <p className="text-[10px] font-bold text-[#5a8a52] uppercase tracking-widest mb-3">Trazabilidad</p>
-          <div className="space-y-2">
-            <div className="flex justify-between py-1.5 border-b border-white/5">
-              <span className="text-[12px] text-slate-400">Codigo de lote</span>
-              <span className="text-[12px] font-mono text-white font-semibold">{lot.lot_code}</span>
-            </div>
-            {(lot as any).room?.name && (
-              <div className="flex justify-between py-1.5 border-b border-white/5">
-                <span className="text-[12px] text-slate-400">Sala de produccion</span>
-                <span className="text-[12px] text-white">{(lot as any).room.name}</span>
-              </div>
-            )}
-            {lot.net_grams && (
-              <div className="flex justify-between py-1.5">
-                <span className="text-[12px] text-slate-400">Produccion neta</span>
-                <span className="text-[12px] text-white font-semibold">{lot.net_grams}g</span>
-              </div>
-            )}
+        {/* Footer */}
+        <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.15)", fontFamily: "monospace" }}>
+            <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", border: "1.5px solid #4d7a46", marginRight: "6px", verticalAlign: "middle" }} />
+            Circulo Esmeralda · {lot.lot_code}
           </div>
         </div>
-
-        <p className="text-center text-[11px] text-[#2d4a28] pb-4">
-          Circulo Esmeralda · Cannabis Medicinal · Produccion organica
-        </p>
       </div>
     </div>
   )
