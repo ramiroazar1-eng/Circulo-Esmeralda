@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { formatDate, formatGrams } from "@/lib/utils"
 import Link from "next/link"
 import LogoutButton from "./LogoutButton"
+import ConsumoChart from "./ConsumoChart"
 
 const MONTHS_SHORT = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
@@ -93,6 +94,21 @@ export default async function MiPerfilPage() {
     .eq("period_month", currentMonth)
     .eq("period_year", currentYear)
     .maybeSingle()
+
+
+  const chartData = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date()
+    d.setMonth(d.getMonth() - (11 - i))
+    const month = d.getMonth() + 1
+    const year = d.getFullYear()
+    const grams = dispenseList
+      .filter((x: any) => {
+        const dd = new Date(x.dispensed_at)
+        return dd.getMonth() + 1 === month && dd.getFullYear() === year
+      })
+      .reduce((acc: number, x: any) => acc + (x.grams ?? 0), 0)
+    return { month: d.toLocaleString("es-AR", { month: "short" }), grams: Math.round(grams) }
+  })
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -196,7 +212,14 @@ export default async function MiPerfilPage() {
           </div>
         )}
 
-        {/* Ultimas dispensas */}
+
+        {/* Grafico de consumo */}
+        <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Consumo ultimos 12 meses</p>
+          <ConsumoChart data={chartData} />
+        </div>
+
+                {/* Ultimas dispensas */}
         {dispenseList.length > 0 && (
           <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
             <p className="text-xs text-slate-400 uppercase tracking-wide mb-3">Ultimas visitas</p>
