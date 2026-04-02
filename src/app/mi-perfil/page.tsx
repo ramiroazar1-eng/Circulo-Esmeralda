@@ -4,6 +4,8 @@ import { formatDate, formatGrams } from "@/lib/utils"
 import Link from "next/link"
 import LogoutButton from "./LogoutButton"
 
+const MONTHS_SHORT = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+
 export default async function MiPerfilPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
