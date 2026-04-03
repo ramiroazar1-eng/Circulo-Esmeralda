@@ -28,7 +28,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/p/') ||
-    pathname.startsWith('/l/')
+    pathname.startsWith('/l/') ||
+    pathname.startsWith('/mi-perfil')
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
