@@ -1,11 +1,9 @@
 "use client"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -15,20 +13,9 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null); setLoading(true)
     const supabase = createClient()
-    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password })
-    console.log('SIGNIN RESULT:', JSON.stringify({ user: signInData?.user?.id, error: error?.message }))
-    if (error) { setError("Credenciales incorrectas. Verifica tu email y contrasena."); setLoading(false); return }
-    const { data: { user }, error: getUserError } = await supabase.auth.getUser()
-    console.log('GET USER RESULT:', JSON.stringify({ userId: user?.id, error: getUserError?.message }))
-    if (user) {
-      const { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-    console.log('PROFILE RESULT:', JSON.stringify({ role: profile?.role, error: profileError?.message }))
-      if (profile?.role === "paciente") {
-        window.location.href = "/mi-perfil"
-      } else {
-        window.location.href = "/dashboard"
-      }
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) { setError("Credenciales incorrectas."); setLoading(false); return }
+    window.location.href = "/dashboard"
   }
 
   return (
@@ -45,13 +32,13 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[11px] font-bold text-[#5a8a52] uppercase tracking-widest mb-1.5">Email</label>
-              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)} autoComplete="email"
                 className="w-full bg-[#162418] border border-[#2d4a28] rounded-lg px-3 py-2.5 text-[13px] text-[#e8f5e3] placeholder:text-[#3d6637] focus:outline-none focus:border-[#4d8a3d] transition-colors"
                 placeholder="usuario@ong.org.ar" disabled={loading} />
             </div>
             <div>
               <label className="block text-[11px] font-bold text-[#5a8a52] uppercase tracking-widest mb-1.5">Contrasena</label>
-              <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
+              <input type="password" required value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password"
                 className="w-full bg-[#162418] border border-[#2d4a28] rounded-lg px-3 py-2.5 text-[13px] text-[#e8f5e3] placeholder:text-[#3d6637] focus:outline-none focus:border-[#4d8a3d] transition-colors"
                 placeholder="••••••••" disabled={loading} />
             </div>
@@ -62,7 +49,6 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-        <p className="text-center text-[11px] text-[#2d4a28] mt-6">Acceso exclusivo para el equipo de la ONG</p>
       </div>
     </div>
   )

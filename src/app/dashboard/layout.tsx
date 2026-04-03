@@ -7,7 +7,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-  if (!profile || !profile.is_active) redirect("/login")
+  if (!profile) redirect("/login")
   if (profile.role === "paciente") redirect("/mi-perfil")
   return (
     <div className="min-h-screen flex">
