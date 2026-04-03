@@ -49,7 +49,7 @@ export default function MisDocumentosPage() {
       .from("patient_documents") /* DEBUG */
       .select("*, doc_type:patient_document_types(name, slug, has_expiry, is_mandatory)")
       .eq("patient_id", profile.patient_id)
-      .order("doc_type(sort_order)")
+      .order("created_at")
 
     setDocs((data ?? []) as DocItem[])
     setLoading(false)
