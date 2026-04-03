@@ -17,7 +17,7 @@ export default function MiPerfilPage() {
       
       const { data: profile } = await supabase
         .from("profiles")
-        .select("*, patient:patients(*, membership_plan:membership_plans(name, monthly_grams, monthly_amount))")
+        .select("*, patient:patients!profiles_patient_id_fkey(*, membership_plan:membership_plans(name, monthly_grams, monthly_amount))")
         .eq("id", user.id)
         .single()
       
