@@ -16,6 +16,7 @@ export default async function MiPerfilPage() {
     .from("profiles").select("*, patient:patients(*, membership_plan:membership_plans(name, monthly_grams, monthly_amount))").eq("id", user.id).single()
 
   if (!profile) redirect("/login")
+  console.log("PROFILE ROLE:", profile.role, "PATIENT_ID:", (profile as any).patient_id)
   if (profile.role !== "paciente") redirect("/dashboard")
 
   const patient = (profile as any).patient
