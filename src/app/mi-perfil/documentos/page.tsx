@@ -41,11 +41,12 @@ export default function MisDocumentosPage() {
     const { data: profile } = await supabase
       .from("profiles").select("patient_id").eq("id", user.id).single()
 
+    console.log('PATIENT_ID:', profile?.patient_id)
     if (!profile?.patient_id) { setLoading(false); return }
     setPatientId(profile.patient_id)
 
     const { data } = await supabase
-      .from("patient_documents")
+      .from("patient_documents") /* DEBUG */
       .select("*, doc_type:patient_document_types(name, slug, has_expiry, is_mandatory)")
       .eq("patient_id", profile.patient_id)
       .order("doc_type(sort_order)")
@@ -91,7 +92,7 @@ export default function MisDocumentosPage() {
     }
     if (expiryDate) updateData.expires_at = expiryDate
 
-    await supabase.from("patient_documents").update(updateData).eq("id", docId)
+    await supabase.from("patient_documents") /* DEBUG */.update(updateData).eq("id", docId)
     setUploading(null)
     loadDocs()
   }
@@ -101,7 +102,7 @@ export default function MisDocumentosPage() {
     setUploading(docId)
     const supabase = createClient()
     await supabase.storage.from("patient-documents").remove([filePath])
-    await supabase.from("patient_documents").update({
+    await supabase.from("patient_documents") /* DEBUG */.update({
       file_path: null, file_name: null, file_size_bytes: null,
       status: slug === "reprocann" ? "pendiente_vinculacion" : "faltante",
       uploaded_by: null, uploaded_at: null, expires_at: null,
