@@ -36,13 +36,13 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password })
     if (error) { setError(error.message); setLoading(false); return }
     setDone(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", session.user.id).single()
-      setTimeout(() => {
-        window.location.href = profile?.role === "paciente" ? "/mi-perfil" : "/dashboard"
-      }, 1500)
-    }
+    setDone(true)
+    setTimeout(() => router.replace('/mi-perfil'), 1500)
+
+
+
+
+
   }
 
   if (done) {
