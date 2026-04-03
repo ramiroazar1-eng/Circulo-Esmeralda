@@ -15,11 +15,14 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null); setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password })
+    console.log('SIGNIN RESULT:', JSON.stringify({ user: signInData?.user?.id, error: error?.message }))
     if (error) { setError("Credenciales incorrectas. Verifica tu email y contrasena."); setLoading(false); return }
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: getUserError } = await supabase.auth.getUser()
+    console.log('GET USER RESULT:', JSON.stringify({ userId: user?.id, error: getUserError?.message }))
     if (user) {
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+      const { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+    console.log('PROFILE RESULT:', JSON.stringify({ role: profile?.role, error: profileError?.message }))
       if (profile?.role === "paciente") {
         window.location.href = "/mi-perfil"
       } else {
