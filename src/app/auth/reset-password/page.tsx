@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Loader2, CheckCircle2 } from "lucide-react"
@@ -10,7 +10,22 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const [ready, setReady] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const supabase = createClient()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || session) {
+        setReady(true)
+      }
+    })
+    // Tambien verificar sesion existente
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -21,7 +36,13 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password })
     if (error) { setError(error.message); setLoading(false); return }
     setDone(true)
-    setTimeout(() => { window.location.href = "/auth/callback" }, 3500)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", session.user.id).single()
+      setTimeout(() => {
+        window.location.href = profile?.role === "paciente" ? "/mi-perfil" : "/dashboard"
+      }, 1500)
+    }
   }
 
   if (done) {
@@ -32,7 +53,7 @@ export default function ResetPasswordPage() {
             <CheckCircle2 className="w-8 h-8 text-green-400" />
           </div>
           <h2 className="text-lg font-bold text-[#e8f5e3]">Contrasena configurada</h2>
-          <p className="text-[#4d7a46] text-sm">Redirigiendo a tu perfil...</p>
+          <p className="text-[#4d7a46] text-sm">Redirigiendo...</p>
         </div>
       </div>
     )
@@ -63,7 +84,8 @@ export default function ResetPasswordPage() {
                 placeholder="Repetir contrasena" disabled={loading} />
             </div>
             {error && <div className="rounded-lg bg-red-950/50 border border-red-800 px-3 py-2 text-[12px] text-red-400">{error}</div>}
-            <button type="submit" disabled={loading}
+            {!ready && <div className="rounded-lg bg-amber-950/50 border border-amber-800 px-3 py-2 text-[12px] text-amber-400 flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" />Verificando sesion...</div>}
+            <button type="submit" disabled={loading || !ready}
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#2d5a27] px-4 py-2.5 text-[13px] font-bold text-[#a8e095] hover:bg-[#3b6d30] disabled:opacity-60 transition-colors mt-2">
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</> : "Guardar contrasena"}
             </button>
