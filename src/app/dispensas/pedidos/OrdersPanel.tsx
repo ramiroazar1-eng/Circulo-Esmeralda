@@ -65,7 +65,7 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
     async function loadOrders() {
       const { data } = await supabase
         .from("orders")
-        .select("*, patient:patients(full_name, dni), genetic:genetics(name), lot:lots(lot_code), created_by_profile:profiles(full_name)")
+        .select("*, patient:patients(full_name, dni), genetic:genetics(name), lot:lots(lot_code), created_by_profile:profiles!orders_created_by_fkey(full_name)")
         .order("created_at", { ascending: false })
         .limit(50)
       setOrders((data ?? []) as Order[])
@@ -73,16 +73,8 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
     }
 
     loadOrders()
-
-    // Realtime
-    const channel = supabase
-      .channel("orders-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
-        loadOrders()
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    const interval = setInterval(loadOrders, 3000)
+    return () => clearInterval(interval)
   }, [])
 
   async function updateStatus(orderId: string, status: string, lotId?: string) {
@@ -242,3 +234,8 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
     </div>
   )
 }
+
+
+
+
+

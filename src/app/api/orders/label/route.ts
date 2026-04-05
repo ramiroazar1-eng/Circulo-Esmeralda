@@ -7,13 +7,13 @@ export async function GET(request: Request) {
   if (!orderId) return NextResponse.json({ error: "ID requerido" }, { status: 400 })
 
   const service = await createServiceClient()
-  const { data: order } = await service
+  const { data: order, error } = await service
     .from("orders")
-    .select("*, patient:patients(full_name, dni), genetic:genetics(name), lot:lots(lot_code), packed_by_profile:profiles(full_name)")
+    .select("*, patient:patients(full_name, dni), genetic:genetics(name), lot:lots(lot_code), packed_by_profile:profiles!orders_packed_by_fkey(full_name)")
     .eq("id", orderId)
     .single()
 
-  if (!order) return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 })
+  if (error || !order) return NextResponse.json({ error: "Pedido no encontrado", detail: error?.message }, { status: 404 })
 
   const qrData = `ORD-${order.id}|LOT-${(order as any).lot?.lot_code ?? "SIN-LOTE"}|${order.grams}G`
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrData)}`
@@ -59,15 +59,12 @@ export async function GET(request: Request) {
     </div>
     <span class="status-badge">${STATUS_LABELS[order.status] ?? order.status}</span>
   </div>
-
   <div class="patient-name">${(order as any).patient?.full_name ?? "—"}</div>
   <div class="patient-dni">DNI ${(order as any).patient?.dni ?? "—"}</div>
-
   <div class="grams-box">
     <div class="grams-num">${order.grams}<span class="grams-unit">g</span></div>
     <div style="font-size:10px;opacity:0.7">${order.product_desc ?? "flor seca"}</div>
   </div>
-
   <div class="detail-row">
     <span class="detail-label">Genetica</span>
     <span class="detail-value">${(order as any).genetic?.name ?? "Sin especificar"}</span>
@@ -77,7 +74,6 @@ export async function GET(request: Request) {
     <span class="detail-value" style="font-family:monospace">${(order as any).lot?.lot_code ?? "Por asignar"}</span>
   </div>
   ${order.packed_at ? `<div class="detail-row"><span class="detail-label">Empaquetado</span><span class="detail-value">${new Date(order.packed_at).toLocaleString("es-AR")}</span></div>` : ""}
-
   <div class="qr-section">
     <img src="${qrUrl}" width="80" height="80" />
     <div class="qr-data">${qrData}</div>

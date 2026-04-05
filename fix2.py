@@ -1,4 +1,3 @@
-content = open("src/app/mi-perfil/page.tsx", "rb").read()
-for i, b in enumerate(content):
-    if b > 127:
-        print(f"Byte {b} (0x{b:02x}) at position {i}: context = {content[max(0,i-10):i+10]}")
+﻿content = open("src/app/dispensas/pedidos/OrdersPanel.tsx", "r", encoding="utf-8").read()
+idx = content.find("loadOrders()\n")
+print(repr(content[idx:idx+400]))

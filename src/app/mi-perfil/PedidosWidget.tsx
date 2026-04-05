@@ -72,12 +72,8 @@ export default function PedidosWidget({ patientId, monthlyLimit, usedGrams }: { 
     }
 
     load()
-
-    const channel = supabase.channel("orders-patient")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${patientId}` }, load)
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    const interval = setInterval(load, 5000)
+    return () => clearInterval(interval)
   }, [patientId])
 
   async function handleSubmit(e: React.FormEvent) {
