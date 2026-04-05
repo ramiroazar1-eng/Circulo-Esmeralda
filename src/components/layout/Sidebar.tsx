@@ -1,9 +1,9 @@
-"use client"
+﻿"use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/types"
-import { LayoutDashboard, Users, Building2, FlaskConical, Pill, CreditCard, BookOpen, Shield, Settings, LogOut, UserCog, ChevronRight, FileDown, QrCode } from "lucide-react"
+import { LayoutDashboard, Users, Building2, FlaskConical, Pill, CreditCard, BookOpen, Shield, Settings, LogOut, UserCog, ChevronRight, FileDown, QrCode, Package } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/trazabilidad", label: "Trazabilidad", icon: FlaskConical, roles: ["admin","administrativo","biologo"] },
   { href: "/dispensas", label: "Dispensas", icon: Pill, roles: ["admin","administrativo"] },
   { href: "/dispensas/qr", label: "Dispensa por QR", icon: QrCode, roles: ["admin","administrativo"] },
+  { href: "/dispensas/pedidos", label: "Pedidos", icon: Package, roles: ["admin","administrativo","biologo"] },
   { href: "/membresias", label: "Membresias", icon: CreditCard, roles: ["admin","administrativo"] },
   { href: "/bitacora", label: "Bitacora", icon: BookOpen, roles: ["admin","administrativo","medico","biologo"] },
   { href: "/exportar", label: "Exportar", icon: FileDown, roles: ["admin","administrativo"] },
@@ -92,3 +93,6 @@ export function Sidebar({ role, userName }: { role: UserRole; userName: string }
     </aside>
   )
 }
+
+
+

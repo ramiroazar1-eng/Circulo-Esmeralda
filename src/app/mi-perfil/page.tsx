@@ -1,9 +1,10 @@
-"use client"
+﻿"use client"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import LogoutButton from "./LogoutButton"
+import PedidosWidget from "./PedidosWidget"
 import ConsumoChart from "./ConsumoChart"
 
 const MONTHS_SHORT = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
@@ -113,7 +114,7 @@ export default function MiPerfilPage() {
               </div>
               <div style={{ textAlign: "center" }}>
                 <p style={{ fontSize: "22px", fontWeight: 800, margin: 0 }}>{Math.round(totalGramsYear)}g</p>
-                <p style={{ fontSize: "10px", color: "#4d7a46", margin: 0 }}>ultimo año</p>
+                <p style={{ fontSize: "10px", color: "#4d7a46", margin: 0 }}>ultimo aÃ±o</p>
               </div>
             </div>
             {plan.monthly_grams && (
@@ -148,7 +149,7 @@ export default function MiPerfilPage() {
                   {currentPayment ? `Pagado el ${new Date(currentPayment.payment_date).toLocaleDateString("es-AR")}` : "Pago pendiente"}
                 </p>
               </div>
-              <span style={{ fontSize: "20px" }}>{currentPayment ? "✓" : "!"}</span>
+              <span style={{ fontSize: "20px" }}>{currentPayment ? "âœ“" : "!"}</span>
             </div>
           </div>
         )}
@@ -160,11 +161,11 @@ export default function MiPerfilPage() {
               <div>
                 <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Mis documentos</p>
                 <p style={{ fontSize: "13px", fontWeight: 600, color: docsOk ? "#4ade80" : "#fbbf24", margin: 0 }}>
-                  {docsOk ? "Todo en orden" : `${docsFaltantes} faltante${docsFaltantes !== 1 ? "s" : ""}${docsPendientes > 0 ? ` · ${docsPendientes} pendiente${docsPendientes !== 1 ? "s" : ""}` : ""}`}
+                  {docsOk ? "Todo en orden" : `${docsFaltantes} faltante${docsFaltantes !== 1 ? "s" : ""}${docsPendientes > 0 ? ` Â· ${docsPendientes} pendiente${docsPendientes !== 1 ? "s" : ""}` : ""}`}
                 </p>
                 <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", marginTop: "2px" }}>Toca para ver y subir documentos</p>
               </div>
-              <span style={{ fontSize: "20px" }}>{docsOk ? "✓" : "⚠"}</span>
+              <span style={{ fontSize: "20px" }}>{docsOk ? "âœ“" : "âš "}</span>
             </div>
           </div>
         </a>
@@ -186,9 +187,11 @@ export default function MiPerfilPage() {
         )}
 
         <div style={{ paddingTop: "8px", paddingBottom: "24px" }}>
-          <LogoutButton />
+          <PedidosWidget patientId={patient?.id ?? ""} monthlyLimit={plan?.monthly_grams ?? null} usedGrams={Math.round(avgMonthly)} />
+        <LogoutButton />
         </div>
       </div>
     </div>
   )
 }
+
