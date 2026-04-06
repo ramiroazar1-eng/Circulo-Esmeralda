@@ -1,0 +1,5 @@
+content = open("src/app/mi-perfil/page.tsx", "r", encoding="utf-8").read()
+content = content.replace('console.log("PAT ID:", pat?.id)\n      ', '')
+content = content.replace('console.log("DISPENSES:", dispensesRes.data?.length, dispensesRes.error?.message)\n        ', '')
+open("src/app/mi-perfil/page.tsx", "w", encoding="utf-8").write(content)
+print("OK")

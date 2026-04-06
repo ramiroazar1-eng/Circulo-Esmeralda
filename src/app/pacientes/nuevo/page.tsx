@@ -70,6 +70,17 @@ export default function NuevoPacientePage() {
       return
     }
 
+    // Crear documentos para el nuevo paciente
+    const { data: docTypes } = await supabase.from("patient_document_types").select("id, slug").eq("is_active", true)
+    if (docTypes && docTypes.length > 0) {
+      const docs = docTypes.map((dt: any) => ({
+        patient_id: patient.id,
+        doc_type_id: dt.id,
+        status: dt.slug === "reprocann" ? "pendiente_vinculacion" : "faltante"
+      }))
+      await supabase.from("patient_documents").insert(docs)
+    }
+
     // Subir archivos si hay
     for (const item of files) {
       if (!item.docType) continue

@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const service = await createServiceClient()
   const { data: order, error } = await service
     .from("orders")
-    .select("*, patient:patients(full_name, dni), genetic:genetics(name), lot:lots(lot_code), packed_by_profile:profiles!orders_packed_by_fkey(full_name)")
+    .select("*, patient:patients(full_name, dni), lot:lots(lot_code), packed_by_profile:profiles!orders_packed_by_fkey(full_name), items:order_items(grams, genetic:genetics(name), lot:lots(lot_code))")
     .eq("id", orderId)
     .single()
 
@@ -65,14 +65,14 @@ export async function GET(request: Request) {
     <div class="grams-num">${order.grams}<span class="grams-unit">g</span></div>
     <div style="font-size:10px;opacity:0.7">${order.product_desc ?? "flor seca"}</div>
   </div>
+  ${((order as any).items ?? []).length > 0 
+    ? (order as any).items.map((item: any) => `
   <div class="detail-row">
-    <span class="detail-label">Genetica</span>
-    <span class="detail-value">${(order as any).genetic?.name ?? "Sin especificar"}</span>
-  </div>
-  <div class="detail-row">
-    <span class="detail-label">Lote</span>
-    <span class="detail-value" style="font-family:monospace">${(order as any).lot?.lot_code ?? "Por asignar"}</span>
-  </div>
+    <span class="detail-label">${item.genetic?.name ?? "Sin genetica"}</span>
+    <span class="detail-value">${item.grams}g - <span style="font-family:monospace">${item.lot?.lot_code ?? "Sin lote"}</span></span>
+  </div>`).join("")
+    : `<div class="detail-row"><span class="detail-label">Genetica</span><span class="detail-value">${(order as any).genetic?.name ?? "Sin especificar"}</span></div>`
+  }
   ${order.packed_at ? `<div class="detail-row"><span class="detail-label">Empaquetado</span><span class="detail-value">${new Date(order.packed_at).toLocaleString("es-AR")}</span></div>` : ""}
   <div class="qr-section">
     <img src="${qrUrl}" width="80" height="80" />

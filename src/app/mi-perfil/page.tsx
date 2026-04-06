@@ -6,6 +6,7 @@ import Link from "next/link"
 import LogoutButton from "./LogoutButton"
 import PedidosWidget from "./PedidosWidget"
 import PlanRequestWidget from "./PlanRequestWidget"
+import FirmaDocumento from "./FirmaDocumento"
 import StatsGamificados from "./StatsGamificados"
 
 const MONTHS_SHORT = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
@@ -191,6 +192,7 @@ export default function MiPerfilPage() {
 
         <div style={{ paddingTop: "8px", paddingBottom: "24px" }}>
           <PedidosWidget patientId={patient?.id ?? ""} monthlyLimit={plan?.monthly_grams ?? null} usedGrams={Math.round(currentMonthGrams)} />
+        <FirmaDocumento patientId={patient?.id ?? ""} patientName={patient?.full_name ?? ""} patientDni={patient?.dni ?? ""} />
         <PlanRequestWidget patientId={patient?.id ?? ""} currentPlanId={patient?.membership_plan_id ?? null} currentPlanGrams={plan?.monthly_grams ?? null} usedGrams={Math.round(currentMonthGrams)} />
         <LogoutButton />
         </div>
