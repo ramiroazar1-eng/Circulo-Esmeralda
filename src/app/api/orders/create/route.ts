@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       .from("lots")
       .select("id, start_date, lot_code")
       .eq("genetic_id", item.genetic_id)
-      .in("status", ["cosecha", "secado", "curado", "disponible", "finalizado"])
+      .in("status", ["cosecha", "secado", "curado", "finalizado"])
       .order("start_date", { ascending: true })
     
     // Obtener stock disponible por lote
