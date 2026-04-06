@@ -6,7 +6,7 @@ import Link from "next/link"
 import LogoutButton from "./LogoutButton"
 import PedidosWidget from "./PedidosWidget"
 import PlanRequestWidget from "./PlanRequestWidget"
-import ConsumoChart from "./ConsumoChart"
+import StatsGamificados from "./StatsGamificados"
 
 const MONTHS_SHORT = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
@@ -87,6 +87,13 @@ export default function MiPerfilPage() {
   const firstName = patient?.full_name?.split(" ")[0] ?? profile?.full_name
   const totalGramsYear = dispenses.reduce((acc, d) => acc + (d.grams ?? 0), 0)
   const avgMonthly = totalGramsYear / 12
+  const now2 = new Date()
+  const currentMonthGrams = dispenses
+    .filter((d: any) => {
+      const dd = new Date(d.dispensed_at)
+      return dd.getMonth() === now2.getMonth() && dd.getFullYear() === now2.getFullYear()
+    })
+    .reduce((acc: number, d: any) => acc + (d.grams ?? 0), 0)
   const docsFaltantes = docs.filter(d => ["faltante","vencido"].includes(d.status)).length
   const docsPendientes = docs.filter(d => d.status === "pendiente_revision").length
   const docsOk = docsFaltantes === 0 && docsPendientes === 0
@@ -133,12 +140,7 @@ export default function MiPerfilPage() {
         )}
 
         {/* Grafico */}
-        {chartData.length > 0 && (
-          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
-            <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px" }}>Consumo ultimos 12 meses</p>
-            <ConsumoChart data={chartData} />
-          </div>
-        )}
+        <StatsGamificados patientId={patient?.id ?? ""} firstName={firstName ?? ""} createdAt={patient?.created_at ?? null} />
 
         {/* Membresia del mes */}
         {plan && (
@@ -188,8 +190,8 @@ export default function MiPerfilPage() {
         )}
 
         <div style={{ paddingTop: "8px", paddingBottom: "24px" }}>
-          <PedidosWidget patientId={patient?.id ?? ""} monthlyLimit={plan?.monthly_grams ?? null} usedGrams={Math.round(avgMonthly)} />
-        <PlanRequestWidget patientId={patient?.id ?? ""} currentPlanId={patient?.membership_plan_id ?? null} currentPlanGrams={plan?.monthly_grams ?? null} usedGrams={Math.round(avgMonthly)} />
+          <PedidosWidget patientId={patient?.id ?? ""} monthlyLimit={plan?.monthly_grams ?? null} usedGrams={Math.round(currentMonthGrams)} />
+        <PlanRequestWidget patientId={patient?.id ?? ""} currentPlanId={patient?.membership_plan_id ?? null} currentPlanGrams={plan?.monthly_grams ?? null} usedGrams={Math.round(currentMonthGrams)} />
         <LogoutButton />
         </div>
       </div>

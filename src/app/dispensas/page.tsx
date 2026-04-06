@@ -27,7 +27,7 @@ export default async function DispensasPage() {
 
   const { data: lots } = await supabase
     .from("v_stock_available")
-    .select("lot_id, lot_code, available_grams, genetic_name")
+    .select("lot_id, lot_code, available_grams, genetic_name, genetic_id")
 
   return (
     <div className="space-y-5">

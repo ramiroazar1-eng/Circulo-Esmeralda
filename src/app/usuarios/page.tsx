@@ -17,7 +17,7 @@ export default async function UsuariosPage() {
   if (!user) redirect("/login")
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   if (profile?.role !== "admin") redirect("/dashboard")
-  const { data: profiles } = await supabase.from("profiles").select("*, patient:patients(full_name)").order("role").order("full_name")
+  const { data: profiles } = await supabase.from("profiles").select("*, patient:patients!profiles_patient_id_fkey(full_name)").order("role").order("full_name")
   const staff = (profiles ?? []).filter((p: any) => p.role !== "paciente")
   const patients = (profiles ?? []).filter((p: any) => p.role === "paciente")
 

@@ -1,4 +1,4 @@
-"use client"
+content = '''"use client"
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { formatGrams } from "@/lib/utils"
@@ -109,15 +109,6 @@ export default function PedidosWidget({ patientId, monthlyLimit, usedGrams }: { 
   const cartTotal = cart.reduce((acc, c) => acc + c.grams, 0)
   const availableGrams = monthlyLimit ? monthlyLimit - usedGrams : null
 
-  async function cancelOrder(orderId: string) {
-    if (!confirm("Cancelar este pedido?")) return
-    await fetch("/api/orders/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ order_id: orderId, status: "cancelado" })
-    })
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (cart.length === 0) { setError("Agrega al menos un item al pedido"); return }
@@ -181,12 +172,6 @@ export default function PedidosWidget({ patientId, monthlyLimit, usedGrams }: { 
               ))}
               {order.delivery_type === "envio" && (
                 <p style={{ fontSize: "11px", color: "#60a5fa", marginTop: "4px" }}>Envio a domicilio</p>
-              )}
-              {["nuevo", "pendiente_aprobacion"].includes(order.status) && (
-                <button onClick={() => cancelOrder(order.id)}
-                  style={{ marginTop: "6px", fontSize: "11px", color: "#f87171", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "8px", padding: "4px 10px", cursor: "pointer" }}>
-                  Cancelar pedido
-                </button>
               )}
             </div>
           ))}
@@ -298,4 +283,8 @@ export default function PedidosWidget({ patientId, monthlyLimit, usedGrams }: { 
       )}
     </div>
   )
-}
+}'''
+
+with open("src/app/mi-perfil/PedidosWidget.tsx", "w", encoding="utf-8") as f:
+    f.write(content)
+print("OK - " + str(len(content.splitlines())) + " lineas")

@@ -1,4 +1,4 @@
-"use client"
+content = '''"use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, X, Trash2 } from "lucide-react"
@@ -151,4 +151,8 @@ export default function NewDispenseModal({ patients, lots }: { patients: Patient
       </div>
     </>
   )
-}
+}'''
+
+with open("src/app/dispensas/NewDispenseModal.tsx", "w", encoding="utf-8") as f:
+    f.write(content)
+print("OK - " + str(len(content.splitlines())) + " lineas")

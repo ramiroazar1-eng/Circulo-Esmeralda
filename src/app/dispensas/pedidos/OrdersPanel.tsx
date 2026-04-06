@@ -13,6 +13,9 @@ interface Order {
   created_at: string
   packed_at: string | null
   lot_id: string | null
+  delivery_type: string | null
+  delivery_address: string | null
+  delivery_phone: string | null
   patient: { full_name: string; dni: string } | null
   genetic: { name: string } | null
   lot: { lot_code: string } | null
@@ -58,6 +61,8 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
   const [filter, setFilter] = useState<string>("activos")
   const [assigningLot, setAssigningLot] = useState<string | null>(null)
   const [selectedLot, setSelectedLot] = useState<Record<string, string>>({})
+  const [prevActiveCount, setPrevActiveCount] = useState<number | null>(null)
+  const [newOrderAlert, setNewOrderAlert] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -68,7 +73,40 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
         .select("*, patient:patients(full_name, dni), genetic:genetics(name), lot:lots(lot_code), created_by_profile:profiles!orders_created_by_fkey(full_name)")
         .order("created_at", { ascending: false })
         .limit(50)
-      setOrders((data ?? []) as Order[])
+      const newData = (data ?? []) as Order[]
+      const activeCount = newData.filter(o => !["entregado","cancelado"].includes(o.status)).length
+      
+      setPrevActiveCount(prev => {
+        if (prev !== null && activeCount > prev) {
+          // Nuevo pedido detectado
+          setNewOrderAlert(true)
+          setTimeout(() => setNewOrderAlert(false), 5000)
+          // Sonido
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
+            osc.connect(gain)
+            gain.connect(ctx.destination)
+            osc.frequency.setValueAtTime(880, ctx.currentTime)
+            osc.frequency.setValueAtTime(660, ctx.currentTime + 0.1)
+            gain.gain.setValueAtTime(0.3, ctx.currentTime)
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4)
+            osc.start(ctx.currentTime)
+            osc.stop(ctx.currentTime + 0.4)
+          } catch(e) {}
+          // Push notification
+          if (Notification.permission === "granted") {
+            new Notification("Nuevo pedido", {
+              body: `Hay ${activeCount} pedido${activeCount !== 1 ? "s" : ""} activo${activeCount !== 1 ? "s" : ""}`,
+              icon: "/favicon.ico"
+            })
+          }
+        }
+        return activeCount
+      })
+      
+      setOrders(newData)
       setLoading(false)
     }
 
@@ -110,6 +148,22 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
 
   return (
     <div className="space-y-4">
+
+      {/* Alerta nuevo pedido */}
+      {newOrderAlert && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-3 animate-pulse">
+          <span className="text-xl">??</span>
+          <p className="text-sm font-semibold text-blue-700">Nuevo pedido recibido</p>
+        </div>
+      )}
+
+      {/* Boton notificaciones */}
+      {typeof window !== "undefined" && Notification.permission === "default" && (
+        <button onClick={() => Notification.requestPermission()}
+          className="w-full text-xs text-slate-500 border border-slate-200 rounded-xl px-4 py-2 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
+          ?? Activar notificaciones del navegador
+        </button>
+      )}
 
       {/* Stats rapidas */}
       <div className="grid grid-cols-4 gap-3">
@@ -171,6 +225,13 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
                         <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">Sin lote asignado</span>
                       )}
                     </div>
+                    {order.delivery_type === "envio" && (
+                      <div className="mt-1 text-xs bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                        <span className="font-semibold text-blue-700">Envio: </span>
+                        <span className="text-blue-600">{order.delivery_address}</span>
+                        {order.delivery_phone && <span className="text-blue-500"> - Tel: {order.delivery_phone}</span>}
+                      </div>
+                    )}
                     {order.notes && <p className="text-xs text-slate-500 mt-1 italic">{order.notes}</p>}
                   </div>
 

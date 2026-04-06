@@ -1,4 +1,5 @@
-﻿import { createClient } from "@/lib/supabase/server"
+﻿import PlanReviewButtons from "./PlanReviewButtons"
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Users, AlertTriangle, CheckCircle2, Clock, FileX, Building2, Pill, CreditCard, ArrowRight } from "lucide-react"
@@ -21,6 +22,13 @@ export default async function DashboardPage() {
   const { data: recentDispenses } = await supabase.from("dispenses").select("id, dispensed_at, grams, patient:patients(full_name), lot:lots(lot_code)").order("dispensed_at", { ascending: false }).limit(5)
   const { data: stockData } = await supabase.from("stock_positions").select("available_grams")
   const totalStock = (stockData ?? []).reduce((acc, s) => acc + (s.available_grams ?? 0), 0)
+  const { data: planRequests } = await supabase
+    .from("plan_requests")
+    .select("*, patient:patients(full_name), current_plan:membership_plans!plan_requests_current_plan_id_fkey(name), requested_plan:membership_plans!plan_requests_requested_plan_id_fkey(name)")
+    .eq("status", "pendiente")
+    .order("created_at", { ascending: false })
+    .limit(10)
+
   const { data: recentLog } = await supabase.from("daily_log_entries").select("id, entry_date, title, category, is_incident, created_by_profile:profiles(full_name)").order("created_at", { ascending: false }).limit(4)
 
   return (
@@ -154,6 +162,34 @@ export default async function DashboardPage() {
           </div>
         </Card>
       )}
+
+      {/* Solicitudes de plan pendientes */}
+      {planRequests && planRequests.length > 0 && (
+        <Card padding={false}>
+          <div className="px-5 pt-5 pb-4">
+            <SectionHeader title={`Solicitudes de plan (${planRequests.length})`} />
+          </div>
+          <div className="divide-y divide-slate-100">
+            {(planRequests as any[]).map((req: any) => (
+              <div key={req.id} className="flex items-center justify-between px-5 py-3">
+                <div>
+                  <p className="text-sm font-medium text-[#1a2e1a]">{req.patient?.full_name ?? "-"}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {req.request_type === "upgrade"
+                      ? `Cambio: ${req.current_plan?.name ?? "-"} -> ${req.requested_plan?.name ?? "-"}`
+                      : `Excepcion: ${req.requested_grams}g extra`}
+                  </p>
+                  {req.reason && <p className="text-xs text-slate-400 italic mt-0.5">{req.reason}</p>}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <PlanReviewButtons requestId={req.id} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
+content = '''import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
@@ -96,4 +96,8 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ success: true, data: order })
-}
+}'''
+
+with open("src/app/api/orders/create/route.ts", "w", encoding="utf-8") as f:
+    f.write(content)
+print("OK - " + str(len(content.splitlines())) + " lineas")

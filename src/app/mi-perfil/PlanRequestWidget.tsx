@@ -74,8 +74,8 @@ export default function PlanRequestWidget({
     setTimeout(() => setSuccess(false), 3000)
   }
 
-  const upgradeOptions = plans.filter(p => p.id !== currentPlanId && (p.monthly_grams ?? 0) > (currentPlanGrams ?? 0))
-  const isOverLimit = currentPlanGrams !== null && usedGrams >= currentPlanGrams
+  const upgradeOptions = plans.filter(p => p.id !== currentPlanId)
+  const isOverLimit = true // Siempre mostrar opciones
 
   if (pendingRequest) {
     return (
@@ -110,8 +110,8 @@ export default function PlanRequestWidget({
       {!showForm ? (
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-            <AlertCircle size={14} color="#f87171" />
-            <p style={{ fontSize: "12px", fontWeight: 700, color: "#f87171" }}>Alcanzaste tu limite mensual</p>
+            <TrendingUp size={14} color="#a8e095" />
+            <p style={{ fontSize: "12px", fontWeight: 700, color: "#a8e095" }}>Gestionar mi plan</p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
             <button onClick={() => { setRequestType("upgrade"); setShowForm(true) }}
