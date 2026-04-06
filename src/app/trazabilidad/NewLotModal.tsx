@@ -2,7 +2,6 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, X } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { Button, Alert } from "@/components/ui"
 
 interface Props {
@@ -19,20 +18,19 @@ export default function NewLotModal({ genetics, rooms }: Props) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setLoading(true); setError(null)
     const form = new FormData(e.currentTarget)
-    const supabase = createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
-    const { error: err } = await supabase.from("lots").insert({
-      genetic_id:    form.get("genetic_id") || null,
-      room_id:       form.get("room_id") || null,
-      seedling_date: form.get("seedling_date") || null,
-      status:        "plantines",
-      start_date:    form.get("seedling_date") || null,
-      notes:         form.get("notes") || null,
-      created_by:    user?.id,
+    const res = await fetch("/api/lots/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        genetic_id:    form.get("genetic_id") || null,
+        room_id:       form.get("room_id") || null,
+        seedling_date: form.get("seedling_date") || null,
+        notes:         form.get("notes") || null,
+      })
     })
-
-    if (err) { setError(err.message); setLoading(false); return }
+    const json = await res.json()
+    if (!res.ok) { setError(json.error ?? "Error al crear lote"); setLoading(false); return }
     setOpen(false); router.refresh()
   }
 
@@ -52,7 +50,6 @@ export default function NewLotModal({ genetics, rooms }: Props) {
           </div>
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
             {error && <Alert variant="error">{error}</Alert>}
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label-ong">Genetica</label>
@@ -69,18 +66,15 @@ export default function NewLotModal({ genetics, rooms }: Props) {
                 </select>
               </div>
             </div>
-
             <div>
               <label className="label-ong">Fecha de plantines</label>
               <input name="seedling_date" type="date" className="input-ong" />
               <p className="text-xs text-[#9ab894] mt-1">El estado del lote se actualizara automaticamente a medida que cargues las fechas de cada etapa.</p>
             </div>
-
             <div>
               <label className="label-ong">Notas</label>
               <textarea name="notes" rows={2} className="input-ong resize-none" placeholder="Observaciones iniciales..." />
             </div>
-
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
               <Button type="submit" loading={loading}>Crear lote</Button>
