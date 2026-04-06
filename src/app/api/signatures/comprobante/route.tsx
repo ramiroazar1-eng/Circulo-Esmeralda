@@ -87,8 +87,9 @@ export async function GET(request: Request) {
   if (!sig) return NextResponse.json({ error: "Sin firma" }, { status: 404 })
 
   const buffer = await renderToBuffer(<ComprobantePDF sig={sig} />)
+  const uint8 = new Uint8Array(buffer)
 
-  return new NextResponse(buffer, {
+  return new NextResponse(uint8, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="comprobante-firma-${sig.signer_dni}.pdf"`,
