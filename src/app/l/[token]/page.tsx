@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { formatDate } from "@/lib/utils"
+import TerpenosChart from "./TerpenosChart"
 
 const TIMELINE_STEPS = [
   { key: "seedling_date",     label: "Plantines",  color: "#2d5a27" },
@@ -13,11 +14,11 @@ const TIMELINE_STEPS = [
 ]
 
 const STRAIN_LABELS: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  indica:         { label: "Indica",                     bg: "rgba(88,28,135,0.5)",  color: "#d8b4fe", border: "rgba(147,51,234,0.4)" },
-  sativa:         { label: "Sativa",                     bg: "rgba(120,53,15,0.5)",  color: "#fcd34d", border: "rgba(217,119,6,0.4)" },
-  hibrida:        { label: "Hibrida",                    bg: "rgba(6,78,59,0.5)",    color: "#6ee7b7", border: "rgba(16,185,129,0.4)" },
-  hibrida_indica: { label: "Hibrida / Indica",           bg: "rgba(88,28,135,0.4)",  color: "#d8b4fe", border: "rgba(147,51,234,0.3)" },
-  hibrida_sativa: { label: "Hibrida / Sativa",           bg: "rgba(120,53,15,0.4)",  color: "#fcd34d", border: "rgba(217,119,6,0.3)" },
+  indica:         { label: "Indica",              bg: "rgba(88,28,135,0.5)",  color: "#d8b4fe", border: "rgba(147,51,234,0.4)" },
+  sativa:         { label: "Sativa",              bg: "rgba(120,53,15,0.5)",  color: "#fcd34d", border: "rgba(217,119,6,0.4)" },
+  hibrida:        { label: "Hibrida",             bg: "rgba(6,78,59,0.5)",    color: "#6ee7b7", border: "rgba(16,185,129,0.4)" },
+  hibrida_indica: { label: "Hibrida / Indica",    bg: "rgba(88,28,135,0.4)",  color: "#d8b4fe", border: "rgba(147,51,234,0.3)" },
+  hibrida_sativa: { label: "Hibrida / Sativa",    bg: "rgba(120,53,15,0.4)",  color: "#fcd34d", border: "rgba(217,119,6,0.3)" },
 }
 
 export default async function PublicLotPage({ params }: { params: Promise<{ token: string }> }) {
@@ -39,39 +40,34 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
     const date = (lot as any)[step.key]
     const nextStep = TIMELINE_STEPS[i + 1]
     const nextDate = nextStep ? (lot as any)[nextStep.key] : null
-    const days = date && nextDate
-      ? Math.round((new Date(nextDate).getTime() - new Date(date).getTime()) / (1000 * 60 * 60 * 24))
-      : null
+    const days = date && nextDate ? Math.round((new Date(nextDate).getTime() - new Date(date).getTime()) / (1000 * 60 * 60 * 24)) : null
     return { ...step, date, days }
   })
-
   const completedSteps = steps.filter(s => s.date).length
+  const terpList = genetic?.terpenes ? genetic.terpenes.split(",").map((t: string) => t.trim()).filter(Boolean) : []
 
   return (
     <div style={{ minHeight: "100vh", background: "#080f09", color: "white", fontFamily: "system-ui, sans-serif" }}>
 
       {/* Hero */}
-      <div style={{ position: "relative", height: "220px", overflow: "hidden" }}>
+      <div style={{ position: "relative", height: "260px", overflow: "hidden" }}>
         {genetic?.photo_url
-          ? <img src={genetic.photo_url} alt={genetic.name} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.6 }} />
-          : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #0f2412, #080f09)" }} />
+          ? <img src={genetic.photo_url} alt={genetic.name} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.7 }} />
+          : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #0f2412, #1a3a1f)" }} />
         }
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #080f09 0%, rgba(8,15,9,0.5) 50%, transparent 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #080f09 0%, rgba(8,15,9,0.4) 60%, transparent 100%)" }} />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 20px 20px" }}>
           {strain && (
-            <span style={{ display: "inline-block", background: strain.bg, color: strain.color, border: `1px solid ${strain.border}`, borderRadius: "20px", fontSize: "11px", fontWeight: 600, padding: "3px 12px", marginBottom: "8px", letterSpacing: "0.3px" }}>
+            <span style={{ display: "inline-block", background: strain.bg, color: strain.color, border: "1px solid " + strain.border, borderRadius: "20px", fontSize: "11px", fontWeight: 600, padding: "3px 12px", marginBottom: "8px" }}>
               {strain.label}
             </span>
           )}
-          <div style={{ fontSize: "28px", fontWeight: 800, lineHeight: 1.1 }}>{genetic?.name ?? "Flor seca"}</div>
-          <div style={{ fontSize: "12px", color: "#4d7a46", marginTop: "4px" }}>Produccion propia · Uso medicinal exclusivo</div>
-        </div>
-        <div style={{ position: "absolute", top: "16px", right: "16px", width: "36px", height: "36px", borderRadius: "10px", background: "#2d5a27", border: "1px solid #4d8a3d", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: "14px", height: "14px", borderRadius: "50%", border: "2px solid #7dc264" }} />
+          <div style={{ fontSize: "30px", fontWeight: 800, lineHeight: 1.1 }}>{genetic?.name ?? "Flor seca"}</div>
+          {genetic?.description && <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginTop: "6px" }}>{genetic.description}</div>}
         </div>
       </div>
 
-      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
+      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px", maxWidth: "420px", margin: "0 auto" }}>
 
         {/* THC / CBD */}
         {(genetic?.thc_percentage || genetic?.cbd_percentage) && (
@@ -91,15 +87,11 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
           </div>
         )}
 
-        {/* Terpenos */}
-        {genetic?.terpenes && (
-          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#d97706", marginBottom: "10px" }}>TERPENOS</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-              {genetic.terpenes.split(",").map((t: string, i: number) => (
-                <span key={i} style={{ background: "rgba(120,53,15,0.4)", color: "#fcd34d", border: "1px solid rgba(217,119,6,0.3)", borderRadius: "20px", fontSize: "12px", padding: "4px 12px" }}>{t.trim()}</span>
-              ))}
-            </div>
+        {/* Terpenos con grafico */}
+        {terpList.length > 0 && (
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "16px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#d97706", marginBottom: "14px" }}>PERFIL DE TERPENOS</div>
+            <TerpenosChart terpenos={genetic.terpenes} />
           </div>
         )}
 
@@ -127,11 +119,14 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
           </div>
         )}
 
-        {/* Timeline */}
+        {/* Proceso de produccion - colapsable */}
         {completedSteps > 0 && (
-          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#4d7a46", marginBottom: "14px" }}>PROCESO DE PRODUCCION</div>
-            <div>
+          <details style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", overflow: "hidden" }}>
+            <summary style={{ padding: "14px", cursor: "pointer", listStyle: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "#4d7a46" }}>PROCESO DE PRODUCCION</span>
+              <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)" }}>{completedSteps} etapas v</span>
+            </summary>
+            <div style={{ padding: "0 14px 14px" }}>
               {steps.map((step, i) => (
                 <div key={step.key} style={{ display: "flex", gap: "10px" }}>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "20px", flexShrink: 0 }}>
@@ -146,24 +141,17 @@ export default async function PublicLotPage({ params }: { params: Promise<{ toke
                     {step.days !== null && step.days > 0 && (
                       <div style={{ fontSize: "11px", color: "#4d7a46", marginTop: "2px" }}>{step.days} dias</div>
                     )}
-                    {step.key === "drying_start_date" && (lot as any).drying_days && (
-                      <div style={{ fontSize: "11px", color: "#4d7a46", marginTop: "2px" }}>{(lot as any).drying_days} dias de secado</div>
-                    )}
-                    {step.key === "curing_start_date" && (lot as any).curing_days && (
-                      <div style={{ fontSize: "11px", color: "#4d7a46", marginTop: "2px" }}>{(lot as any).curing_days} dias de curado</div>
-                    )}
                     {!step.date && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.15)", marginTop: "2px" }}>Pendiente</div>}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </details>
         )}
 
         {/* Footer */}
-        <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
+        <div style={{ textAlign: "center", padding: "8px 0 24px" }}>
           <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.15)", fontFamily: "monospace" }}>
-            <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", border: "1.5px solid #4d7a46", marginRight: "6px", verticalAlign: "middle" }} />
             Circulo Esmeralda · {lot.lot_code}
           </div>
         </div>
