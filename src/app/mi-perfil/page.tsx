@@ -124,7 +124,7 @@ export default function MiPerfilPage() {
               </div>
               <div style={{ textAlign: "center" }}>
                 <p style={{ fontSize: "22px", fontWeight: 800, margin: 0 }}>{Math.round(totalGramsYear)}g</p>
-                <p style={{ fontSize: "10px", color: "#4d7a46", margin: 0 }}>ultimo aÃ±o</p>
+                <p style={{ fontSize: "10px", color: "#4d7a46", margin: 0 }}>último año</p>
               </div>
             </div>
             {plan.monthly_grams && (
@@ -166,7 +166,7 @@ export default function MiPerfilPage() {
               <div>
                 <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Mis documentos</p>
                 <p style={{ fontSize: "13px", fontWeight: 600, color: docsOk ? "#4ade80" : "#fbbf24", margin: 0 }}>
-                  {docsOk ? "Todo en orden" : `${docsFaltantes} faltante${docsFaltantes !== 1 ? "s" : ""}${docsPendientes > 0 ? ` Â· ${docsPendientes} pendiente${docsPendientes !== 1 ? "s" : ""}` : ""}`}
+                  {docsOk ? "Todo en orden" : `${docsFaltantes} faltante${docsFaltantes !== 1 ? "s" : ""}${docsPendientes > 0 ? ` · ${docsPendientes} pendiente${docsPendientes !== 1 ? "s" : ""}` : ""}`}
                 </p>
                 <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", marginTop: "2px" }}>Toca para ver y subir documentos</p>
               </div>

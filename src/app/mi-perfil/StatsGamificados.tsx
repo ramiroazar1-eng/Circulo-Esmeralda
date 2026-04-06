@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { formatGrams } from "@/lib/utils"
@@ -13,12 +13,12 @@ const NIVELES = [
 ]
 
 const INSIGNIAS = [
-  { id: "primera",    icon: "?", label: "Primera dispensa",   check: (s: any) => s.totalHistorico > 0 },
-  { id: "veterano",   icon: "?", label: "6 meses en el club", check: (s: any) => s.mesesActivo >= 6 },
-  { id: "explorador", icon: "?", label: "5 geneticas",        check: (s: any) => s.geneticasProbadas >= 5 },
-  { id: "constante",  icon: "?", label: "Top 3 del mes",      check: (s: any) => s.posicionMes <= 3 },
-  { id: "fiel",       icon: "?", label: "12 meses activo",    check: (s: any) => s.mesesActivo >= 12 },
-  { id: "lider",      icon: "?", label: "Lider del club",     check: (s: any) => s.posicionHistorico === 1 },
+  { id: "primera",    icon: "\uD83C\uDF31", label: "Primera dispensa",   check: (s: any) => s.totalHistorico > 0 },
+  { id: "veterano",   icon: "\u2B50", label: "6 meses en el club", check: (s: any) => s.mesesActivo >= 6 },
+  { id: "explorador", icon: "\uD83E\uDDEC", label: "5 geneticas",        check: (s: any) => s.geneticasProbadas >= 5 },
+  { id: "constante",  icon: "\uD83C\uDFC6", label: "Top 3 del mes",      check: (s: any) => s.posicionMes <= 3 },
+  { id: "fiel",       icon: "\uD83D\uDD25", label: "12 meses activo",    check: (s: any) => s.mesesActivo >= 12 },
+  { id: "lider",      icon: "\uD83D\uDC51", label: "Lider del club",     check: (s: any) => s.posicionHistorico === 1 },
 ]
 
 function getNivelYProgreso(grams: number) {
@@ -108,7 +108,7 @@ export default function StatsGamificados({ patientId, firstName, createdAt }: { 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
         {[
           { label: "Este mes",  value: formatGrams(stats.totalMes),       sub: `#${stats.posicionMes} del club` },
-          { label: "Este áo",  value: formatGrams(stats.totalAnio),      sub: `#${stats.posicionAnio} del club` },
+          { label: "Este Año",  value: formatGrams(stats.totalAnio),      sub: `#${stats.posicionAnio} del club` },
           { label: "Historico", value: formatGrams(stats.totalHistorico), sub: `#${stats.posicionHistorico} del club` },
         ].map((s, i) => (
           <div key={i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "12px 8px", textAlign: "center" }}>
@@ -153,7 +153,7 @@ export default function StatsGamificados({ patientId, firstName, createdAt }: { 
         <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
           <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "2px", color: "#7c3aed", marginBottom: "10px", textTransform: "uppercase" }}>Top del mes</p>
           {topMes.map((p: any, i: number) => {
-            const medals = ["??", "??", "??"]
+            const medals = ["\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49"]
             const isMe = p.patient_id === patientId
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: i < topMes.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
