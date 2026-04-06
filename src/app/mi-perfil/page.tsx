@@ -170,7 +170,7 @@ export default function MiPerfilPage() {
                 </p>
                 <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", marginTop: "2px" }}>Toca para ver y subir documentos</p>
               </div>
-              <span style={{ fontSize: "20px" }}>{docsOk ? "âœ“" : "âš "}</span>
+              <span style={{ fontSize: "20px" }}>{docsOk ? "✓" : "⚠️"}</span>
             </div>
           </div>
         </a>

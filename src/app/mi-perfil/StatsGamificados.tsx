@@ -153,7 +153,7 @@ export default function StatsGamificados({ patientId, firstName, createdAt }: { 
         <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "14px" }}>
           <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "2px", color: "#7c3aed", marginBottom: "10px", textTransform: "uppercase" }}>Top del mes</p>
           {topMes.map((p: any, i: number) => {
-            const medals = ["\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49"]
+            const medals = ["🥇", "🥈", "🥉"]
             const isMe = p.patient_id === patientId
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: i < topMes.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
