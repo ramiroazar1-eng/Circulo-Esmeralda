@@ -15,7 +15,6 @@ const DOC_TYPES = [
   { value: "reprocann", label: "REPROCANN" },
   { value: "orden_medica", label: "Orden medica" },
   { value: "consentimiento", label: "Consentimiento informado" },
-  { value: "ddjj", label: "Declaracion jurada (DDJJ)" },
 ]
 
 export default function NuevoPacientePage() {
