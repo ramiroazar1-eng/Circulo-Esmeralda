@@ -70,7 +70,7 @@ export default async function ConciliacionPage() {
                   <td className="tabular-nums">${parseFloat(p.amount).toLocaleString("es-AR")}</td>
                   <td className="text-xs">{p.comprobante_uploaded_at ? new Date(p.comprobante_uploaded_at).toLocaleDateString("es-AR") : "-"}</td>
                   <td>
-                    <a href={/api/payments/comprobante?path=+encodeURIComponent(p.comprobante_url)} target="_blank" className="text-xs text-blue-600 underline">Ver</a>
+                    <a href={`/api/payments/comprobante?path=${encodeURIComponent(p.comprobante_url)}`} target="_blank" className="text-xs text-blue-600 underline">Ver</a>
                   </td>
                   <td><ConciliacionActions periodId={p.id} /></td>
                 </tr>
