@@ -8,6 +8,7 @@ import PedidosWidget from "./PedidosWidget"
 import PlanRequestWidget from "./PlanRequestWidget"
 import FirmaDocumento from "./FirmaDocumento"
 import StatsGamificados from "./StatsGamificados"
+import CuotasWidget from "./CuotasWidget"
 
 const MONTHS_SHORT = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
@@ -173,6 +174,8 @@ export default function MiPerfilPage() {
             </div>
           </div>
         </a>
+
+        <CuotasWidget patientId={patient?.id ?? ""} />
 
         {/* Ultimas dispensas */}
         {dispenses.length > 0 && (
