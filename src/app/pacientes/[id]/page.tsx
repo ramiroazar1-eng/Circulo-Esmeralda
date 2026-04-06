@@ -10,6 +10,7 @@ import ViewFileButton from "./ViewFileButton"
 import DocumentStatusAction from "./DocumentStatusAction"
 import QRDisplay from "@/components/qr/QRDisplay"
 import DeletePatientButton from "./DeletePatientButton"
+import ComprobanteButton from "./ComprobanteButton"
 
 export default async function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -140,6 +141,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             {signature.document_hash && (
               <p className="text-[10px] text-slate-400 font-mono break-all">Hash: {signature.document_hash}</p>
             )}
+            <div className="mt-3"><ComprobanteButton patientId={patient.id} /></div>
           </div>
         ) : (
           <div className="flex items-center gap-2">
