@@ -13,12 +13,12 @@ const NIVELES = [
 ]
 
 const INSIGNIAS = [
-  { id: "primera",    icon: "\uD83C\uDF31", label: "Primera dispensa",   check: (s: any) => s.totalHistorico > 0 },
-  { id: "veterano",   icon: "\u2B50", label: "6 meses en el club", check: (s: any) => s.mesesActivo >= 6 },
-  { id: "explorador", icon: "\uD83E\uDDEC", label: "5 geneticas",        check: (s: any) => s.geneticasProbadas >= 5 },
-  { id: "constante",  icon: "\uD83C\uDFC6", label: "Top 3 del mes",      check: (s: any) => s.posicionMes <= 3 },
-  { id: "fiel",       icon: "\uD83D\uDD25", label: "12 meses activo",    check: (s: any) => s.mesesActivo >= 12 },
-  { id: "lider",      icon: "\uD83D\uDC51", label: "Lider del club",     check: (s: any) => s.posicionHistorico === 1 },
+  { id: "primera",    icon: "🌱", label: "Primera dispensa",   check: (s: any) => s.totalHistorico > 0 },
+  { id: "veterano",   icon: "⭐", label: "6 meses en el club", check: (s: any) => s.mesesActivo >= 6 },
+  { id: "explorador", icon: "🧬", label: "5 geneticas",        check: (s: any) => s.geneticasProbadas >= 5 },
+  { id: "constante",  icon: "🏆", label: "Top 3 del mes",      check: (s: any) => s.posicionMes <= 3 },
+  { id: "fiel",       icon: "🔥", label: "12 meses activo",    check: (s: any) => s.mesesActivo >= 12 },
+  { id: "lider",      icon: "👑", label: "Lider del club",     check: (s: any) => s.posicionHistorico === 1 },
 ]
 
 function getNivelYProgreso(grams: number) {
