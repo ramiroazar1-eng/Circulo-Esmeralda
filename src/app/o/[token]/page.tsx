@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
-import TerpenosChart from "../../../l/[token]/TerpenosChart"
+import TerpenosChart from "@/components/TerpenosChart"
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   pendiente:   { label: "Pendiente",   color: "#fbbf24", bg: "rgba(245,158,11,0.15)" },

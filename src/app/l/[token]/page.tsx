@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { formatDate } from "@/lib/utils"
-import TerpenosChart from "./TerpenosChart"
+import TerpenosChart from "@/components/TerpenosChart"
 
 const TIMELINE_STEPS = [
   { key: "seedling_date",     label: "Plantines",  color: "#2d5a27" },
