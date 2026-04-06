@@ -34,7 +34,7 @@ export default async function ConciliacionPage() {
 
   return (
     <div className="space-y-5">
-      <BackButton label="Volver a membresias" href="/membresias" />
+      <BackButton label="Volver a membresias" />
       <PageHeader
         title="Conciliacion de pagos"
         description="Comprobantes pendientes de aprobacion"
