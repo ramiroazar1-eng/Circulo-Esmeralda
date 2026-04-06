@@ -93,6 +93,11 @@ export default function PedidosWidget({ patientId, monthlyLimit, usedGrams }: { 
     if (!selectedGenetic || !itemGrams || parseFloat(itemGrams) <= 0) return
     const genetic = genetics.find(g => g.genetic_id === selectedGenetic)
     if (!genetic) return
+    if (parseFloat(itemGrams) > genetic.total_available) {
+      setError(`Stock insuficiente. Maximo disponible: ${genetic.total_available.toFixed(1)}g`)
+      return
+    }
+    setError(null)
     const existing = cart.find(c => c.genetic_id === selectedGenetic)
     if (existing) {
       setCart(cart.map(c => c.genetic_id === selectedGenetic ? { ...c, grams: c.grams + parseFloat(itemGrams) } : c))
@@ -217,7 +222,7 @@ export default function PedidosWidget({ patientId, monthlyLimit, usedGrams }: { 
                   </option>
                 ))}
               </select>
-              <input type="number" step="0.1" min="0.1" value={itemGrams} onChange={e => setItemGrams(e.target.value)} placeholder="g"
+              <input type="number" step="0.1" min="0.1" value={itemGrams} onChange={e => setItemGrams(e.target.value)} placeholder="g" max={selectedGenetic ? (genetics.find(g => g.genetic_id === selectedGenetic)?.total_available ?? "") : ""}
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "8px", padding: "8px 10px", fontSize: "12px", color: "white", outline: "none" }} />
               <button type="button" onClick={addToCart} disabled={!selectedGenetic || !itemGrams}
                 style={{ background: "#2d5a27", border: "none", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: !selectedGenetic || !itemGrams ? 0.5 : 1 }}>
