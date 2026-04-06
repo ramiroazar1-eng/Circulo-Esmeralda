@@ -22,6 +22,13 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const { data: patient } = await supabase.from("patients").select("*, treating_physician:profiles!patients_treating_physician_id_fkey(id, full_name), membership_plan:membership_plans(id, name, monthly_grams, monthly_amount)").eq("id", id).is("deleted_at", null).single()
   if (!patient) notFound()
   const { data: documents } = await supabase.from("patient_documents").select("*, doc_type:patient_document_types(id, name, slug, is_mandatory, has_expiry, sort_order)").eq("patient_id", id).order("doc_type(sort_order)")
+  const { data: signature } = await supabase
+    .from("document_signatures")
+    .select("id, status, signed_at, signer_name, document_hash, template:document_templates(name, version)")
+    .eq("patient_id", patient.id)
+    .eq("status", "firmado")
+    .maybeSingle()
+
   const { data: dispenses } = await supabase.from("dispenses").select("id, dispensed_at, grams, product_desc, lot:lots(lot_code), performed_by_profile:profiles(full_name)").eq("patient_id", id).order("dispensed_at", { ascending: false }).limit(20)
   const days = daysUntil(patient.reprocann_expiry)
   const totalDispensed = (dispenses ?? []).reduce((acc: number, d: any) => acc + (d.grams ?? 0), 0)
@@ -113,6 +120,34 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         <div className="px-5 pt-5 pb-4"><SectionHeader title="Historial de dispensas" actions={<Link href="/dispensas"><Button size="sm">Registrar dispensa</Button></Link>} /></div>
         {(!dispenses || dispenses.length === 0) ? <div className="text-center py-8 text-sm text-slate-400">Sin dispensas registradas</div> : (
           <div className="overflow-x-auto"><table className="table-ong w-full"><thead><tr><th>Fecha</th><th>Producto</th><th>Lote</th><th>Cantidad</th><th>Registrado por</th></tr></thead><tbody>{dispenses.map((d: any) => (<tr key={d.id}><td>{formatDateTime(d.dispensed_at)}</td><td>{d.product_desc}</td><td className="font-mono text-xs">{d.lot?.lot_code ?? "—"}</td><td className="font-medium tabular-nums">{formatGrams(d.grams)}</td><td className="text-slate-500">{d.performed_by_profile?.full_name ?? "—"}</td></tr>))}</tbody></table></div>
+        )}
+      </Card>
+
+      {/* Firma electronica */}
+      <Card>
+        <SectionHeader title="Documento de membresia" />
+        {signature ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">
+                Firmado
+              </span>
+              <span className="text-xs text-slate-500">
+                {signature.signed_at ? new Date(signature.signed_at).toLocaleString("es-AR") : "-"}
+              </span>
+            </div>
+            <p className="text-xs text-slate-600">Firmante: <span className="font-medium">{signature.signer_name}</span></p>
+            {signature.document_hash && (
+              <p className="text-[10px] text-slate-400 font-mono break-all">Hash: {signature.document_hash}</p>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+              Pendiente de firma
+            </span>
+            <span className="text-xs text-slate-500">El paciente debe firmar desde su portal</span>
+          </div>
         )}
       </Card>
     </div>
