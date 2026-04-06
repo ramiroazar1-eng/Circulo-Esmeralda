@@ -21,6 +21,7 @@ export default function NewLotModal({ genetics, rooms }: Props) {
     const form = new FormData(e.currentTarget)
     const supabase = createClient()
 
+    const { data: { user } } = await supabase.auth.getUser()
     const { error: err } = await supabase.from("lots").insert({
       genetic_id:    form.get("genetic_id") || null,
       room_id:       form.get("room_id") || null,
@@ -28,7 +29,7 @@ export default function NewLotModal({ genetics, rooms }: Props) {
       status:        "plantines",
       start_date:    form.get("seedling_date") || null,
       notes:         form.get("notes") || null,
-      created_by:    (await supabase.auth.getUser()).data.user?.id ?? null,
+      created_by:    user?.id,
     })
 
     if (err) { setError(err.message); setLoading(false); return }
