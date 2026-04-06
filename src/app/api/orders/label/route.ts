@@ -1,4 +1,4 @@
-﻿import { createServiceClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function GET(request: Request) {
@@ -15,8 +15,16 @@ export async function GET(request: Request) {
 
   if (error || !order) return NextResponse.json({ error: "Pedido no encontrado", detail: error?.message }, { status: 404 })
 
-  const qrData = `ORD-${order.id}|LOT-${(order as any).lot?.lot_code ?? "SIN-LOTE"}|${order.grams}G`
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrData)}`
+  // Generar qr_token si no tiene
+  let qrToken = (order as any).qr_token
+  if (!qrToken) {
+    qrToken = "ord_" + Math.random().toString(36).substr(2, 10)
+    await service.from("orders").update({ qr_token: qrToken }).eq("id", orderId)
+  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.circuloesmeralda.com.ar"
+  const orderUrl = appUrl + "/o/" + qrToken
+  const qrData = "ORD-" + order.id.substring(0,8).toUpperCase()
+  const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=" + encodeURIComponent(orderUrl)
 
   const STATUS_LABELS: Record<string, string> = {
     nuevo: "Nuevo", pendiente_aprobacion: "Pendiente", aprobado: "Aprobado",
@@ -65,7 +73,7 @@ export async function GET(request: Request) {
     <div class="grams-num">${order.grams}<span class="grams-unit">g</span></div>
     <div style="font-size:10px;opacity:0.7">${order.product_desc ?? "flor seca"}</div>
   </div>
-  ${((order as any).items ?? []).length > 0 
+  ${((order as any).items ?? []).length > 0
     ? (order as any).items.map((item: any) => `
   <div class="detail-row">
     <span class="detail-label">${item.genetic?.name ?? "Sin genetica"}</span>
@@ -76,7 +84,7 @@ export async function GET(request: Request) {
   ${order.packed_at ? `<div class="detail-row"><span class="detail-label">Empaquetado</span><span class="detail-value">${new Date(order.packed_at).toLocaleString("es-AR")}</span></div>` : ""}
   <div class="qr-section">
     <img src="${qrUrl}" width="80" height="80" />
-    <div class="qr-data">${qrData}</div>
+    <div class="qr-data">${orderUrl}</div>
   </div>
 </div>
 <script>window.onload = () => window.print()</script>
