@@ -1,0 +1,16 @@
+﻿name: Generar cuotas mensuales
+
+on:
+  schedule:
+    - cron: '0 9 1 * *'  # 1ro de cada mes 6 AM Argentina (UTC-3)
+  workflow_dispatch:      # permite correrlo manualmente
+
+jobs:
+  generate-periods:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar endpoint de cuotas
+        run: |
+          curl -f -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.circuloesmeralda.com.ar/api/cron/generate-periods
