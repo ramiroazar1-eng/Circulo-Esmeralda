@@ -28,6 +28,7 @@ export default function NewLotModal({ genetics, rooms }: Props) {
       status:        "plantines",
       start_date:    form.get("seedling_date") || null,
       notes:         form.get("notes") || null,
+      created_by:    (await supabase.auth.getUser()).data.user?.id ?? null,
     })
 
     if (err) { setError(err.message); setLoading(false); return }
