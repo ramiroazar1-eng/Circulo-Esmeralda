@@ -42,7 +42,7 @@ export default async function ConciliacionPage() {
 
       <Card padding={false}>
         <div className="px-5 pt-5 pb-4">
-          <SectionHeader title={Pendientes de aprobacion ()} />
+          <SectionHeader title={`Pendientes de aprobacion (${pendingList.length})`} />
         </div>
         {pendingList.length === 0 ? (
           <div className="pb-5"><EmptyState title="No hay comprobantes pendientes" icon={CreditCard} /></div>
