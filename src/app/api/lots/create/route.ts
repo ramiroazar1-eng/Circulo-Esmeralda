@@ -5,6 +5,7 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+  console.log("USER ID:", user.id)
 
   const body = await request.json()
   const { genetic_id, room_id, seedling_date, notes } = body
