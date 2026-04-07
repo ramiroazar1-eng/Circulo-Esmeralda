@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       observations: observations || null,
       performed_by: user.id,
       dispensed_at: new Date().toISOString(),
-      source: "qr",
+      source: "presencial",
     })
     .select()
     .single()
