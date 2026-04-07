@@ -39,7 +39,27 @@ export async function POST(request: Request) {
 
   if (lot_id) updateData.lot_id = lot_id
   if (status === "empaquetado") { updateData.packed_by = user.id; updateData.packed_at = new Date().toISOString() }
-  if (status === "entregado") updateData.delivered_by = user.id
+  if (status === "entregado") {
+    updateData.delivered_by = user.id
+    updateData.delivered_at = new Date().toISOString()
+    // Crear dispensas desde los order_items
+    const { data: items } = await service
+      .from("order_items")
+      .select("grams, lot_id, genetic_id")
+      .eq("order_id", order_id)
+    if (items && items.length > 0) {
+      const dispenses = items.map((item: any) => ({
+        patient_id: order.patient_id,
+        lot_id: item.lot_id,
+        grams: item.grams,
+        product_desc: "flor seca",
+        performed_by: user.id,
+        dispensed_at: new Date().toISOString(),
+        source: "pedido"
+      }))
+      await service.from("dispenses").insert(dispenses)
+    }
+  }
 
   // Si se cancela, liberar reserva de stock
   if (status === "cancelado" && order.lot_id) {
