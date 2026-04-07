@@ -70,7 +70,7 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
     async function loadOrders() {
       const { data } = await supabase
         .from("orders")
-        .select("*, patient:patients(full_name, dni), genetic:genetics(name), lot:lots(lot_code), created_by_profile:profiles!orders_created_by_fkey(full_name)")
+        .select("*, patient:patients(full_name, dni), lot:lots(lot_code), created_by_profile:profiles!orders_created_by_fkey(full_name), items:order_items(grams, lot:lots(lot_code), genetic:genetics(name))")
         .order("created_at", { ascending: false })
         .limit(50)
       const newData = (data ?? []) as Order[]
@@ -201,7 +201,7 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
             const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.nuevo
             const nextStatus = NEXT_STATUS[order.status]
             const nextLabel = NEXT_STATUS_LABEL[order.status]
-            const needsLot = !order.lot_id && nextStatus === "en_preparacion"
+            const needsLot = false
 
             return (
               <div key={order.id} className={`bg-white border rounded-xl p-4 ${statusCfg.border}`}>
@@ -215,15 +215,21 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
                       <span className="text-xs text-slate-400">{new Date(order.created_at).toLocaleString("es-AR")}</span>
                     </div>
                     <p className="text-base font-bold text-[#1a2e1a]">{order.patient?.full_name ?? "—"}</p>
-                    <p className="text-xs text-slate-500">DNI {order.patient?.dni ?? "—"}</p>
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    <div className="flex items-center gap-2 mt-2">
                       <span className="text-sm font-black text-[#1a2e1a]">{formatGrams(order.grams)}</span>
-                      {order.genetic && <span className="text-xs bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8] rounded-full px-2 py-0.5">{order.genetic.name}</span>}
-                      {order.lot ? (
-                        <span className="text-xs font-mono bg-slate-100 text-slate-600 rounded px-2 py-0.5">{order.lot.lot_code}</span>
-                      ) : (
-                        <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">Sin lote asignado</span>
-                      )}
+                    </div>
+                    <div className="flex flex-col gap-1 mt-1">
+                      {((order as any).items ?? []).map((item: any, i: number) => (
+                        <div key={i} className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8] rounded-full px-2 py-0.5">{item.genetic?.name ?? "Sin genetica"}</span>
+                          <span className="text-xs font-black text-[#1a2e1a]">{formatGrams(item.grams)}</span>
+                          {item.lot ? (
+                            <span className="text-xs font-mono bg-slate-100 text-slate-600 rounded px-2 py-0.5">{item.lot.lot_code}</span>
+                          ) : (
+                            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">Sin lote</span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                     {order.delivery_type === "envio" && (
                       <div className="mt-1 text-xs bg-blue-50 border border-blue-200 rounded px-2 py-1">
