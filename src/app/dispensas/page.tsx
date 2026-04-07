@@ -14,7 +14,7 @@ export default async function DispensasPage() {
 
   const { data: dispenses } = await supabase
     .from("dispenses")
-    .select("id, dispensed_at, grams, product_desc, observations, patient:patients(id, full_name, dni), lot:lots(lot_code), performed_by_profile:profiles(full_name)")
+    .select("id, dispensed_at, grams, product_desc, observations, source, patient:patients(id, full_name, dni), lot:lots(lot_code), performed_by_profile:profiles(full_name)")
     .order("dispensed_at", { ascending: false })
     .limit(50)
 
@@ -63,6 +63,7 @@ export default async function DispensasPage() {
                 <th>Producto</th>
                 <th>Lote</th>
                 <th>Cantidad</th>
+                <th>Origen</th>
                 <th>Registrado por</th>
               </tr>
             </thead>
@@ -79,7 +80,16 @@ export default async function DispensasPage() {
                   <td>{d.product_desc}</td>
                   <td className="font-mono text-xs">{d.lot?.lot_code ?? "—"}</td>
                   <td className="font-medium tabular-nums">{formatGrams(d.grams)}</td>
-                  <td className="text-slate-500">{d.performed_by_profile?.full_name ?? "—"}</td>
+                  <td>
+                  {d.source === "pedido" ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Pedido</span>
+                  ) : d.source === "manual" ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Manual</span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8]">QR</span>
+                  )}
+                </td>
+                <td className="text-slate-500">{d.performed_by_profile?.full_name ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
