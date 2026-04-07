@@ -137,7 +137,8 @@ export function EditRoomButton({ room }: { room: any }) {
     const { error: err } = await supabase.from("rooms").update({
       name: form.get("name"),
       description: form.get("description") || null,
-      is_active: form.get("is_active") === "true"
+      is_active: form.get("is_active") === "true",
+      square_meters: parseFloat(form.get("square_meters") as string) || null
     }).eq("id", room.id)
     if (err) { setError(err.message); setLoading(false); return }
     setOpen(false); router.refresh()
@@ -166,6 +167,7 @@ export function EditRoomButton({ room }: { room: any }) {
             {error && <Alert variant="error">{error}</Alert>}
             <div><label className="label-ong">Nombre *</label><input name="name" required defaultValue={room.name} className="input-ong" /></div>
             <div><label className="label-ong">Descripcion</label><input name="description" defaultValue={room.description ?? ""} className="input-ong" /></div>
+            <div><label className="label-ong">Metros cuadrados cultivables</label><input name="square_meters" type="number" step="0.1" min="0" defaultValue={room.square_meters ?? ""} className="input-ong" placeholder="Ej: 17" /></div>
             <div><label className="label-ong">Estado</label>
               <select name="is_active" defaultValue={room.is_active ? "true" : "false"} className="input-ong">
                 <option value="true">Activa</option>
