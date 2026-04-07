@@ -31,7 +31,7 @@ export default function NewLotModal({ genetics, rooms }: Props) {
     })
     const json = await res.json()
     if (!res.ok) { setError(json.error ?? "Error al crear lote"); setLoading(false); return }
-    setOpen(false); router.refresh()
+    setLoading(false); setOpen(false); router.refresh()
   }
 
   if (!open) return <Button size="sm" onClick={() => setOpen(true)}><Plus className="w-3.5 h-3.5" />Nuevo lote</Button>
