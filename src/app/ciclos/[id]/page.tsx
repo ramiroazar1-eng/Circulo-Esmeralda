@@ -6,6 +6,7 @@ import { formatDate, formatGrams } from "@/lib/utils"
 import Link from "next/link"
 import NewExpenseModal from "./NewExpenseModal"
 import NewEventModal from "./NewEventModal"
+import CloseCycleButton from "./CloseCycleButton"
 
 const ETAPAS = [
   { key: "seedling_date",     label: "Plantines" },
@@ -103,6 +104,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           </p>
         </div>
         <div className="flex gap-2">
+          {cycle.status === "activo" && <CloseCycleButton cycleId={id} cycleName={cycle.name} />}
           <NewEventModal cycleId={id} />
           <NewExpenseModal cycleId={id} />
         </div>
