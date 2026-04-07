@@ -20,12 +20,16 @@ export async function POST(request: Request) {
   const totalNet = (lots ?? []).reduce((acc: number, l: any) => acc + (parseFloat(l.net_grams) || 0), 0)
   const totalGross = (lots ?? []).reduce((acc: number, l: any) => acc + (parseFloat(l.gross_grams) || 0), 0)
 
+  // Usar fecha del ultimo lote finalizado como fecha de fin
+  const lastFinished = (lots ?? []).filter((l: any) => l.harvest_date).map((l: any) => l.harvest_date).sort().pop()
+  const endDate = lastFinished ?? new Date().toISOString().split("T")[0]
+
   // Cerrar el ciclo
   const { error } = await service
     .from("production_cycles")
     .update({
       status: "finalizado",
-      end_date: new Date().toISOString().split("T")[0],
+      end_date: endDate,
     })
     .eq("id", cycle_id)
     .eq("status", "activo")
