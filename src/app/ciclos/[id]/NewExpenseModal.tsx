@@ -44,6 +44,7 @@ export default function NewExpenseModal({ cycleId }: { cycleId: string }) {
         total_amount: totalAmount,
         purchase_date: form.get("purchase_date"),
         useful_cycles: usefulCycles,
+        is_recurring: (form.get("is_recurring") === "true"),
         allocated_amount: allocatedAmount,
         notes: form.get("notes") || null,
       })
@@ -111,6 +112,14 @@ export default function NewExpenseModal({ cycleId }: { cycleId: string }) {
                 <p className="text-xs text-[#9ab894] mt-1">El monto se prorratea entre los ciclos</p>
               </div>
               <div className="col-span-2">
+              <div className="col-span-2">
+                <label className="label-ong">Gasto recurrente?</label>
+                <select name="is_recurring" className="input-ong">
+                  <option value="false">No (gasto puntual)</option>
+                  <option value="true">Si (se repite cada mes)</option>
+                </select>
+                <p className="text-xs text-[#9ab894] mt-1">Los gastos recurrentes se distribuyen automaticamente entre ciclos activos por m2 de sala</p>
+              </div>
                 <label className="label-ong">Notas</label>
                 <textarea name="notes" rows={2} className="input-ong resize-none" />
               </div>
