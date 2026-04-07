@@ -11,11 +11,11 @@ export async function POST(request: Request) {
 
   const service = await createServiceClient()
 
-  // Generar nombre automatico: "Ciclo MM/YYYY"
+  // Generar nombre automatico con numero correlativo
   const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, "0")
-  const year = now.getFullYear()
-  const name = `Ciclo ${month}/${year}`
+  const { count } = await service.from("production_cycles").select("*", { count: "exact", head: true })
+  const cycleNumber = (count ?? 0) + 1
+  const name = `Ciclo #${cycleNumber}`
   const start_date = now.toISOString().split("T")[0]
 
   const { data, error } = await service
