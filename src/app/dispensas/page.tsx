@@ -86,7 +86,7 @@ export default async function DispensasPage() {
                   ) : d.source === "manual" ? (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Manual</span>
                   ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8]">QR</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8]">Presencial</span>
                   )}
                 </td>
                 <td className="text-slate-500">{d.performed_by_profile?.full_name ?? "—"}</td>
