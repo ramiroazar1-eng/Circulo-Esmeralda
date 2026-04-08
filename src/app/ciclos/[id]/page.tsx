@@ -19,7 +19,8 @@ const ETAPAS = [
 
 const EVENT_LABELS: Record<string, string> = {
   poda: "Poda", nutrientes: "Nutrientes", tratamiento: "Tratamiento",
-  transplante: "Transplante", otro: "Otro"
+  transplante: "Transplante", riego: "Riego", defoliacion: "Defoliacion",
+  traslado: "Traslado", incidente: "Incidente", descarte: "Descarte parcial", otro: "Otro"
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -38,7 +39,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [cycleRes, expensesRes, eventsRes] = await Promise.all([
+  const [cycleRes, expensesRes, eventsRes, roomsRes] = await Promise.all([
     supabase.from("production_cycles")
       .select("*, lots(id, lot_code, status, net_grams, gross_grams, seedling_date, veg_date, flower_date, harvest_date, drying_start_date, drying_days, curing_start_date, curing_days, genetic:genetics(name))")
       .eq("id", id).single(),
@@ -47,9 +48,10 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
       .eq("cycle_id", id)
       .order("created_at", { ascending: false }),
     supabase.from("cycle_events")
-      .select("id, event_type, event_date, notes")
+      .select("id, event_type, event_date, notes, lot:lots(lot_code), room:rooms(name)")
       .eq("cycle_id", id)
       .order("event_date", { ascending: true }),
+    supabase.from("rooms").select("id, name").eq("is_active", true),
   ])
 
   if (!cycleRes.data) notFound()
@@ -57,6 +59,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const expenses = (expensesRes.data ?? []) as any[]
   const events = (eventsRes.data ?? []) as any[]
   const lots = (cycle.lots ?? []) as any[]
+  const rooms = (roomsRes.data ?? []) as any[]
 
   const totalNet = lots.reduce((acc: number, l: any) => acc + (l.net_grams ?? 0), 0)
   const totalGross = lots.reduce((acc: number, l: any) => acc + (l.gross_grams ?? 0), 0)
@@ -100,12 +103,12 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
             </span>
           </div>
           <p className="text-sm text-[#6b8c65]">
-            {formatDate(cycle.start_date)}{cycle.end_date && ` → ${formatDate(cycle.end_date)}`}{durationDays && ` · ${durationDays} dias totales`}
+            {formatDate(cycle.start_date)}{cycle.end_date && ` -> ${formatDate(cycle.end_date)}`}{durationDays && ` - ${durationDays} dias totales`}
           </p>
         </div>
         <div className="flex gap-2">
           {cycle.status === "activo" && <CloseCycleButton cycleId={id} cycleName={cycle.name} />}
-          <NewEventModal cycleId={id} />
+          <NewEventModal cycleId={id} lots={lots.map((l: any) => ({ id: l.id, lot_code: l.lot_code }))} rooms={rooms} />
           <NewExpenseModal cycleId={id} />
         </div>
       </div>
@@ -124,11 +127,11 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           <p className="text-[10px] text-[#9ab894] uppercase tracking-wide mt-1">Lotes</p>
         </div>
         <div className="bg-white border border-[#ddecd8] rounded-xl p-4 text-center">
-          <p className="text-2xl font-black text-[#1a2e1a]">{durationDays ?? "—"}</p>
+          <p className="text-2xl font-black text-[#1a2e1a]">{durationDays ?? "-"}</p>
           <p className="text-[10px] text-[#9ab894] uppercase tracking-wide mt-1">Dias totales</p>
         </div>
         <div className={`border rounded-xl p-4 text-center ${costPerGram ? "bg-[#edf7e8] border-[#b8daa8]" : "bg-white border-[#ddecd8]"}`}>
-          <p className="text-2xl font-black text-[#1a2e1a]">{costPerGram ? `$${costPerGram}` : "—"}</p>
+          <p className="text-2xl font-black text-[#1a2e1a]">{costPerGram ? `$${costPerGram}` : "-"}</p>
           <p className="text-[10px] text-[#9ab894] uppercase tracking-wide mt-1">Costo por gramo</p>
         </div>
       </div>
@@ -162,7 +165,6 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
         )}
       </div>
 
-      {/* Gastos */}
       <Card padding={false}>
         <div className="px-5 pt-5 pb-4 flex items-center justify-between">
           <div>
@@ -186,7 +188,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-[#1a2e1a]">{e.expense?.description}</p>
-                      <p className="text-xs text-[#9ab894]">{CATEGORY_LABELS[e.expense?.category] ?? e.expense?.category} · {formatDate(e.expense?.purchase_date)}{e.expense?.supplier ? ` · ${e.expense.supplier}` : ""}</p>
+                      <p className="text-xs text-[#9ab894]">{CATEGORY_LABELS[e.expense?.category] ?? e.expense?.category} - {formatDate(e.expense?.purchase_date)}{e.expense?.supplier ? ` - ${e.expense.supplier}` : ""}</p>
                       {e.expense?.useful_cycles > 1 && <p className="text-xs text-[#9ab894]">Total: ${parseFloat(e.expense.total_amount).toLocaleString("es-AR")} / {e.expense.useful_cycles} ciclos</p>}
                     </div>
                     <span className="text-sm font-bold text-[#1a2e1a]">${parseFloat(e.allocated_amount).toLocaleString("es-AR")}</span>
@@ -198,7 +200,6 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
         )}
       </Card>
 
-      {/* Eventos */}
       {events.length > 0 && (
         <Card padding={false}>
           <div className="px-5 pt-5 pb-4"><SectionHeader title="Eventos del ciclo" /></div>
@@ -208,6 +209,12 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
                 <div>
                   <p className="text-sm font-medium text-[#1a2e1a]">{EVENT_LABELS[ev.event_type] ?? ev.event_type}</p>
                   {ev.notes && <p className="text-xs text-[#6b8c65] mt-0.5">{ev.notes}</p>}
+                  {(ev.lot || ev.room) && (
+                    <div className="flex gap-1.5 mt-1">
+                      {ev.lot && <span className="text-xs bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8] rounded px-1.5 py-0.5">{ev.lot.lot_code}</span>}
+                      {ev.room && <span className="text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">{ev.room.name}</span>}
+                    </div>
+                  )}
                 </div>
                 <span className="text-xs text-[#9ab894] shrink-0 ml-4">{formatDate(ev.event_date)}</span>
               </div>
@@ -228,7 +235,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-[#1a2e1a]">{lot.net_grams ? formatGrams(lot.net_grams) : "—"}</p>
+                    <p className="text-sm font-semibold text-[#1a2e1a]">{lot.net_grams ? formatGrams(lot.net_grams) : "-"}</p>
                     <p className="text-xs text-[#9ab894]">netos</p>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${lot.status === "finalizado" ? "bg-[#edf7e8] text-[#2d6a1f] border-[#b8daa8]" : "bg-[#fdf8ec] text-[#8a6010] border-[#e8d48a]"}`}>

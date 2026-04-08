@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
   const body = await request.json()
-  const { cycle_id, event_type, event_date, notes } = body
+  const { cycle_id, event_type, event_date, notes, lot_id, room_id } = body
 
   if (!cycle_id || !event_type || !event_date)
     return NextResponse.json({ error: "Faltan datos requeridos" }, { status: 400 })
@@ -15,7 +15,15 @@ export async function POST(request: Request) {
   const service = await createServiceClient()
   const { error } = await service
     .from("cycle_events")
-    .insert({ cycle_id, event_type, event_date, notes, created_by: user.id })
+    .insert({
+      cycle_id,
+      event_type,
+      event_date,
+      notes: notes || null,
+      lot_id: lot_id || null,
+      room_id: room_id || null,
+      created_by: user.id
+    })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ success: true })
