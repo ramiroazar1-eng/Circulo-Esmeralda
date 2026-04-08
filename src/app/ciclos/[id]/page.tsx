@@ -7,6 +7,7 @@ import Link from "next/link"
 import NewExpenseModal from "./NewExpenseModal"
 import NewEventModal from "./NewEventModal"
 import CloseCycleButton from "./CloseCycleButton"
+import DailyClosureModal from "./DailyClosureModal"
 
 const ETAPAS = [
   { key: "seedling_date",     label: "Plantines" },
@@ -39,7 +40,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [cycleRes, expensesRes, eventsRes, roomsRes] = await Promise.all([
+  const [cycleRes, expensesRes, eventsRes, roomsRes, closuresRes] = await Promise.all([
     supabase.from("production_cycles")
       .select("*, lots(id, lot_code, status, net_grams, gross_grams, seedling_date, veg_date, flower_date, harvest_date, drying_start_date, drying_days, curing_start_date, curing_days, genetic:genetics(name))")
       .eq("id", id).single(),
@@ -52,6 +53,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
       .eq("cycle_id", id)
       .order("event_date", { ascending: true }),
     supabase.from("rooms").select("id, name").eq("is_active", true),
+    supabase.from("daily_closures").select("id, closure_date, events_count, events_hash, closed_by_profile:profiles!daily_closures_closed_by_fkey(full_name)").eq("cycle_id", id).order("closure_date", { ascending: false }),
   ])
 
   if (!cycleRes.data) notFound()
@@ -60,6 +62,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const events = (eventsRes.data ?? []) as any[]
   const lots = (cycle.lots ?? []) as any[]
   const rooms = (roomsRes.data ?? []) as any[]
+  const closures = (closuresRes.data ?? []) as any[]
 
   const totalNet = lots.reduce((acc: number, l: any) => acc + (l.net_grams ?? 0), 0)
   const totalGross = lots.reduce((acc: number, l: any) => acc + (l.gross_grams ?? 0), 0)
@@ -108,6 +111,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
         </div>
         <div className="flex gap-2">
           {cycle.status === "activo" && <CloseCycleButton cycleId={id} cycleName={cycle.name} />}
+          <DailyClosureModal cycleId={id} closures={closures} />
           <NewEventModal cycleId={id} lots={lots.map((l: any) => ({ id: l.id, lot_code: l.lot_code }))} rooms={rooms} />
           <NewExpenseModal cycleId={id} />
         </div>
