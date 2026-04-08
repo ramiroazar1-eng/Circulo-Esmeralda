@@ -158,7 +158,7 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
       )}
 
       {/* Boton notificaciones */}
-      {typeof window !== "undefined" && Notification.permission === "default" && (
+      {typeof window !== "undefined" && typeof Notification !== "undefined" && Notification.permission === "default" && (
         <button onClick={() => Notification.requestPermission()}
           className="w-full text-xs text-slate-500 border border-slate-200 rounded-xl px-4 py-2 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
           ?? Activar notificaciones del navegador
