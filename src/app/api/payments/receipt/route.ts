@@ -122,7 +122,14 @@ export async function GET(request: Request) {
     Este recibo es válido como comprobante de pago interno. Entidad sin fines de lucro exenta de IVA.
   </div>
 </div>
-<script>window.onload = () => window.print()</script>
+<div style="position:fixed;bottom:20px;right:20px;display:flex;gap:8px;z-index:999">
+    <button onclick="window.print()" style="background:#0f1f12;color:white;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Imprimir</button>
+  </div>
+  <script>
+    if (!/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      window.onload = () => window.print();
+    }
+  </script>
 </body>
 </html>`
 
