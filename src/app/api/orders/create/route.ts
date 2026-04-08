@@ -1,7 +1,12 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { apiLimiter } from "@/lib/ratelimit"
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "unknown"
+  const { success } = await apiLimiter.limit(ip)
+  if (!success) return NextResponse.json({ error: "Demasiados intentos. Espera unos minutos." }, { status: 429 })
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
@@ -20,7 +25,6 @@ export async function POST(request: Request) {
   const service = await createServiceClient()
   const totalGrams = items.reduce((acc: number, item: any) => acc + parseFloat(item.grams), 0)
 
-  // Verificar stock disponible por genetica
   for (const item of items) {
     const { data: stockRows } = await service
       .from("v_stock_available")
@@ -32,7 +36,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Stock insuficiente para la genetica solicitada. Disponible: ${totalStock.toFixed(1)}g` }, { status: 400 })
   }
 
-  // Verificar limite mensual
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   const { data: patient } = await service
@@ -50,7 +53,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Supera el limite mensual. Disponible: ${(monthlyLimit - usedGrams - reservedGrams).toFixed(1)}g` }, { status: 400 })
   }
 
-  // Crear orden
   const { data: order, error: orderError } = await service
     .from("orders")
     .insert({
@@ -68,46 +70,36 @@ export async function POST(request: Request) {
     .single()
   if (orderError) return NextResponse.json({ error: orderError.message }, { status: 400 })
 
-  // Auto-asignar lotes FIFO por genetica
   const orderItems: any[] = []
   for (const item of items) {
-    // Obtener lotes disponibles de esta genetica ordenados por start_date (FIFO)
     const { data: lots } = await service
       .from("lots")
       .select("id, start_date, lot_code")
       .eq("genetic_id", item.genetic_id)
       .in("status", ["cosecha", "secado", "curado", "finalizado"])
       .order("start_date", { ascending: true })
-    
-    // Obtener stock disponible por lote
+
     const { data: stockRows } = await service
       .from("v_stock_available")
       .select("lot_id, available_grams")
       .eq("genetic_id", item.genetic_id)
       .gt("available_grams", 0)
-    
+
     const stockByLot: Record<string, number> = {}
     for (const row of (stockRows ?? [])) {
       stockByLot[row.lot_id] = parseFloat(row.available_grams)
     }
 
-    // Distribuir gramos FIFO
     let remaining = parseFloat(item.grams)
     for (const lot of (lots ?? [])) {
       if (remaining <= 0) break
       const available = stockByLot[lot.id] ?? 0
       if (available <= 0) continue
       const take = Math.min(remaining, available)
-      orderItems.push({
-        order_id: order.id,
-        genetic_id: item.genetic_id,
-        lot_id: lot.id,
-        grams: take
-      })
+      orderItems.push({ order_id: order.id, genetic_id: item.genetic_id, lot_id: lot.id, grams: take })
       remaining -= take
     }
 
-    // Si queda restante sin lote (no deberia pasar por la validacion previa)
     if (remaining > 0) {
       orderItems.push({ order_id: order.id, genetic_id: item.genetic_id, lot_id: null, grams: remaining })
     }

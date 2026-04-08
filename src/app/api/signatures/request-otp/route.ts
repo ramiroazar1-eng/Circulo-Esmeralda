@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { createHash } from "crypto"
+import { otpLimiter } from "@/lib/ratelimit"
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
@@ -11,6 +12,10 @@ function hashOTP(otp: string): string {
 }
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "unknown"
+  const { success } = await otpLimiter.limit(ip)
+  if (!success) return NextResponse.json({ error: "Demasiados intentos. Espera unos minutos." }, { status: 429 })
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
