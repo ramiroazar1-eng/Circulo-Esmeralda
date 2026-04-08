@@ -77,8 +77,8 @@ export default async function MembresiasPage() {
                 return (
                   <tr key={p.id}>
                     <td className="font-medium text-[#1a2e1a]">{p.full_name}</td>
-                    <td className="font-mono text-xs">{p.dni}</td>
-                    <td>{p.membership_plan?.name ?? ""”"}</td>
+                    <td>{p.membership_plan?.name ?? "—"}</td>
+                    <td>{p.membership_plan?.name ?? "—"}</td>
                     <td className="tabular-nums">${parseFloat(p.membership_plan?.monthly_amount ?? 0).toLocaleString("es-AR")}</td>
                     <td>
                       {isPaid ? (
@@ -112,8 +112,8 @@ export default async function MembresiasPage() {
               {(allPayments as any[]).map((p: any) => (
                 <tr key={p.id}>
                   <td>{new Date(p.payment_date).toLocaleDateString("es-AR")}</td>
-                  <td className="font-medium text-[#1a2e1a]">{p.patient?.full_name ?? ""”"}</td>
-                  <td>{p.plan?.name ?? ""”"}</td>
+                  <td className="font-medium text-[#1a2e1a]">{p.patient?.full_name ?? "—"}</td>
+                  <td>{p.plan?.name ?? "—"}</td>
                   <td>{MONTHS[p.period_month - 1]} {p.period_year}</td>
                   <td className="tabular-nums font-medium">${parseFloat(p.amount).toLocaleString("es-AR")}</td>
                   <td className="capitalize">{p.payment_method}</td>
