@@ -12,8 +12,12 @@ const MOVEMENT_TYPES = [
   { value: "merma", label: "Merma / perdida" },
 ]
 
+interface Product extends SupplyStock {
+  last_unit_cost?: number | null
+}
+
 interface Props {
-  products: SupplyStock[]
+  products: Product[]
   cycles: { id: string; name: string }[]
   lots: { id: string; lot_code: string }[]
   rooms: { id: string; name: string }[]
@@ -24,24 +28,55 @@ export default function NewSupplyMovementModal({ products, cycles, lots, rooms }
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [movementType, setMovementType] = useState("compra")
+  const [selectedProductId, setSelectedProductId] = useState("")
+  const [quantity, setQuantity] = useState("")
+  const [unitCost, setUnitCost] = useState("")
   const router = useRouter()
+
+  function handleProductChange(productId: string) {
+    setSelectedProductId(productId)
+    if (movementType === "consumo") {
+      const product = products.find(p => p.id === productId)
+      if (product?.last_unit_cost) {
+        setUnitCost(product.last_unit_cost.toString())
+      } else {
+        setUnitCost("")
+      }
+    }
+  }
+
+  function handleMovementTypeChange(type: string) {
+    setMovementType(type)
+    if (type === "consumo" && selectedProductId) {
+      const product = products.find(p => p.id === selectedProductId)
+      if (product?.last_unit_cost) {
+        setUnitCost(product.last_unit_cost.toString())
+      }
+    } else if (type !== "consumo") {
+      setUnitCost("")
+    }
+  }
+
+  const totalCost = quantity && unitCost
+    ? (parseFloat(quantity) * parseFloat(unitCost)).toLocaleString("es-AR", { minimumFractionDigits: 2 })
+    : null
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
     setError(null)
     const form = new FormData(e.currentTarget)
-    const quantity = parseFloat(form.get("quantity") as string)
-    const unit_cost = parseFloat(form.get("unit_cost") as string) || null
+    const qty = parseFloat(quantity)
+    const uc = parseFloat(unitCost) || null
     const res = await fetch("/api/supplies/movements", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        supply_product_id: form.get("supply_product_id"),
-        movement_type: form.get("movement_type"),
-        quantity,
-        unit_cost,
-        total_cost: unit_cost ? quantity * unit_cost : null,
+        supply_product_id: selectedProductId,
+        movement_type: movementType,
+        quantity: qty,
+        unit_cost: uc,
+        total_cost: uc ? qty * uc : null,
         cycle_id: form.get("cycle_id") || null,
         lot_id: form.get("lot_id") || null,
         room_id: form.get("room_id") || null,
@@ -52,6 +87,10 @@ export default function NewSupplyMovementModal({ products, cycles, lots, rooms }
     const data = await res.json()
     if (!res.ok) { setError(data.error); setLoading(false); return }
     setOpen(false)
+    setSelectedProductId("")
+    setQuantity("")
+    setUnitCost("")
+    setMovementType("compra")
     router.refresh()
   }
 
@@ -74,22 +113,65 @@ export default function NewSupplyMovementModal({ products, cycles, lots, rooms }
             {error && <Alert variant="error">{error}</Alert>}
             <div>
               <label className="label-ong">Tipo *</label>
-              <select name="movement_type" required className="input-ong" value={movementType} onChange={e => setMovementType(e.target.value)}>
+              <select name="movement_type" required className="input-ong" value={movementType} onChange={e => handleMovementTypeChange(e.target.value)}>
                 {MOVEMENT_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
             </div>
             <div>
               <label className="label-ong">Producto *</label>
-              <select name="supply_product_id" required className="input-ong">
+              <select name="supply_product_id" required className="input-ong" value={selectedProductId} onChange={e => handleProductChange(e.target.value)}>
                 <option value="">Selecciona...</option>
-                {products.map(p => <option key={p.id} value={p.id}>{p.name} — stock: {p.stock_actual} {p.unit}</option>)}
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — stock: {p.stock_actual} {p.unit}
+                    {p.last_unit_cost ? ` — ultimo precio: $${p.last_unit_cost}/${p.unit}` : ""}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="label-ong">Cantidad *</label><input name="quantity" type="number" required min="0.01" step="0.01" className="input-ong" /></div>
-              <div><label className="label-ong">Costo unitario</label><input name="unit_cost" type="number" min="0" step="0.01" className="input-ong" placeholder="$0.00" /></div>
+              <div>
+                <label className="label-ong">Cantidad *</label>
+                <input
+                  name="quantity"
+                  type="number"
+                  required
+                  min="0.01"
+                  step="0.01"
+                  className="input-ong"
+                  value={quantity}
+                  onChange={e => setQuantity(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label-ong">
+                  Costo unitario
+                  {movementType === "consumo" && unitCost && (
+                    <span className="text-[#9ab894] ml-1">(ultimo precio)</span>
+                  )}
+                </label>
+                <input
+                  name="unit_cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="input-ong"
+                  placeholder="$0.00"
+                  value={unitCost}
+                  onChange={e => setUnitCost(e.target.value)}
+                />
+              </div>
             </div>
-            <div><label className="label-ong">Fecha *</label><input name="movement_date" type="date" required className="input-ong" defaultValue={new Date().toISOString().split("T")[0]} /></div>
+            {totalCost && (
+              <div className="bg-[#f5faf3] rounded-lg px-3 py-2 flex justify-between items-center">
+                <span className="text-xs text-[#6b8c65]">Costo total del movimiento</span>
+                <span className="text-sm font-bold text-[#1a2e1a]">${totalCost}</span>
+              </div>
+            )}
+            <div>
+              <label className="label-ong">Fecha *</label>
+              <input name="movement_date" type="date" required className="input-ong" defaultValue={new Date().toISOString().split("T")[0]} />
+            </div>
             {movementType === "consumo" && (
               <>
                 <div>
@@ -115,7 +197,10 @@ export default function NewSupplyMovementModal({ products, cycles, lots, rooms }
                 </div>
               </>
             )}
-            <div><label className="label-ong">Notas</label><textarea name="notes" rows={2} className="input-ong resize-none" /></div>
+            <div>
+              <label className="label-ong">Notas</label>
+              <textarea name="notes" rows={2} className="input-ong resize-none" />
+            </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
               <Button type="submit" loading={loading}>Registrar</Button>

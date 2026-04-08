@@ -21,7 +21,7 @@ export default async function InsumosPage() {
   const canEdit = ["admin","biologo"].includes(profile?.role ?? "")
 
   const { data: stockRaw } = await supabase
-    .from("v_supply_stock")
+    .from("supply_products").select("id, name, category, unit, stock_alert_threshold, is_active, last_unit_cost, stock_actual:supply_movements(quantity, movement_type)")
     .select("*")
     .eq("is_active", true)
     .order("category")
@@ -69,7 +69,7 @@ export default async function InsumosPage() {
           <div className="flex flex-wrap gap-2">
             {bajoStock.map(s => (
               <span key={s.id} className="text-xs bg-red-100 text-red-700 border border-red-200 rounded-full px-2.5 py-1">
-                {s.name} — {s.stock_actual} {s.unit}
+                {s.name} â€” {s.stock_actual} {s.unit}
               </span>
             ))}
           </div>
@@ -111,7 +111,7 @@ export default async function InsumosPage() {
                     {s.stock_actual} {s.unit}
                   </td>
                   <td className="text-slate-400 tabular-nums text-sm">
-                    {s.stock_alert_threshold > 0 ? `min. ${s.stock_alert_threshold} ${s.unit}` : "—"}
+                    {s.stock_alert_threshold > 0 ? `min. ${s.stock_alert_threshold} ${s.unit}` : "â€”"}
                   </td>
                 </tr>
               ))}
