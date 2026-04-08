@@ -10,6 +10,7 @@ import type { PatientAlert, ComplianceSummary, CurrentMembership } from "@/types
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  console.log("DASHBOARD USER:", user?.id ?? "NULL")
   if (!user) redirect("/login")
 
   const { data: complianceRaw } = await supabase.from("v_compliance_summary").select("*").single()
@@ -193,3 +194,4 @@ export default async function DashboardPage() {
     </div>
   )
 }
+
