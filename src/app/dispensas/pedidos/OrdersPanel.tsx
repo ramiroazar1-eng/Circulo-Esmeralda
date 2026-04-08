@@ -166,7 +166,7 @@ export default function OrdersPanel({ lots }: { lots: LotOption[] }) {
       )}
 
       {/* Stats rapidas */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { key: "activos", label: "Activos", icon: Clock, color: "text-blue-600", bg: "bg-blue-50 border-blue-200" },
           { key: "entregado", label: "Entregados hoy", icon: CheckCircle2, color: "text-green-600", bg: "bg-green-50 border-green-200" },

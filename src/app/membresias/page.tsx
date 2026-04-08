@@ -58,7 +58,7 @@ export default async function MembresiasPage() {
         description={`${MONTHS[currentMonth - 1]} ${currentYear} Â· Estado de pagos`}
         actions={<NewPaymentModal patients={patientList} currentMonth={currentMonth} currentYear={currentYear} />}
       />
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatCard label="Pagados este mes" value={totalPagados} variant="ok" icon={CheckCircle2} />
         <StatCard label="Pendientes" value={totalPendientes} variant={totalPendientes > 0 ? "atencion" : "ok"} icon={Clock} />
         <StatCard label="Recaudado" value={`$${totalRecaudado.toLocaleString("es-AR")}`} icon={CreditCard} />

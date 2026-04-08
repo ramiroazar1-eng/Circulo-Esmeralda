@@ -56,7 +56,7 @@ export default async function CiclosPage() {
                       <p className="text-xs text-[#9ab894]">producidos</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                     <div className="bg-[#f5faf3] rounded-lg p-3 text-center">
                       <p className="text-lg font-black text-[#1a2e1a]">{lots.length}</p>
                       <p className="text-[10px] text-[#9ab894] uppercase tracking-wide">Lotes</p>

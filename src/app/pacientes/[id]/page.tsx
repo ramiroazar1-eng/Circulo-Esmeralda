@@ -57,7 +57,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         <ReprocannBadge status={patient.reprocann_status} />
         {patient.membership_plan && <Badge>{patient.membership_plan.name}</Badge>}
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="col-span-1">
           <SectionHeader title="Datos del paciente" />
           <dl className="space-y-3 text-sm">

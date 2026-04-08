@@ -51,7 +51,7 @@ export default async function TrazabilidadPage() {
         description="Lotes de produccion y movimientos de stock"
         actions={canEdit ? <NewLotModal genetics={genetics ?? []} rooms={rooms ?? []} /> : undefined}
       />
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatCard label="Lotes en proceso" value={enProceso} icon={FlaskConical} />
         <StatCard label="Lotes finalizados" value={finalizados} icon={Package} variant="ok" />
         <StatCard label="Stock total disponible" value={formatGrams(totalStock)} />

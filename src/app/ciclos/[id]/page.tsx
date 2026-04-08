@@ -110,7 +110,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-white border border-[#ddecd8] rounded-xl p-4 text-center">
           <p className="text-2xl font-black text-[#1a2e1a]">{formatGrams(totalNet)}</p>
           <p className="text-[10px] text-[#9ab894] uppercase tracking-wide mt-1">Produccion neta</p>
@@ -133,7 +133,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <SectionHeader title="Geneticas del ciclo" />
           <div className="flex flex-wrap gap-2">

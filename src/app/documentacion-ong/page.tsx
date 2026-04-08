@@ -45,7 +45,7 @@ export default async function DocumentacionONGPage() {
       <BackButton label="Volver al dashboard" />
       <PageHeader title="Documentacion institucional" description="Checklist y repositorio de documentacion legal y regulatoria de la ONG" />
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Total documentos" value={total} icon={Building2} />
         <StatCard label="Aprobados" value={aprobados} variant={aprobados === total && total > 0 ? "ok" : "default"} icon={CheckCircle2} />
         <StatCard label="Pendientes de revision" value={pendientes} variant={pendientes > 0 ? "atencion" : "default"} icon={Clock} />

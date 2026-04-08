@@ -65,7 +65,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
           {canEdit && <EditLotModal lot={lot} genetics={genetics ?? []} rooms={rooms ?? []} />}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="col-span-2">
           <SectionHeader title="Timeline del ciclo" />
           <div className="mb-4">
