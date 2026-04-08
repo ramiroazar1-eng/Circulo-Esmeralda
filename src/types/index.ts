@@ -1,4 +1,4 @@
-﻿export type UserRole = 'admin' | 'administrativo' | 'medico' | 'biologo' | 'paciente'
+export type UserRole = 'admin' | 'administrativo' | 'medico' | 'biologo' | 'paciente' | 'delivery'
 export type PatientStatus = 'activo' | 'pendiente_documental' | 'suspendido' | 'inactivo' | 'baja'
 export type ReprocannStatus = 'vigente' | 'proximo_vencimiento' | 'vencido' | 'pendiente_vinculacion'
 export type DocumentStatus = 'faltante' | 'pendiente_revision' | 'aprobado' | 'observado' | 'vencido' | 'pendiente_vinculacion'

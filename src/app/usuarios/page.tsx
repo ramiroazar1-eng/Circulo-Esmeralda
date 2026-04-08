@@ -8,7 +8,7 @@ import DeleteUserButton from "./DeleteUserButton"
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador", administrativo: "Administrativo",
-  medico: "Medico", biologo: "Biologo", paciente: "Paciente"
+  medico: "Medico", biologo: "Biologo", paciente: "Paciente", delivery: "Delivery"
 }
 
 export default async function UsuariosPage() {
@@ -68,3 +68,4 @@ export default async function UsuariosPage() {
     </div>
   )
 }
+

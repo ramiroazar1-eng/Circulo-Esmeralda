@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
@@ -21,6 +21,8 @@ const NAV_ITEMS = [
   { href: "/manuales",            label: "Manuales",           icon: BookOpen,        roles: ["admin","administrativo"] },
   { href: "/documentacion-ong",   label: "Documentacion ONG",  icon: Building2,       roles: ["admin","administrativo"] },
   { href: "/exportar",            label: "Exportar",           icon: FileDown,        roles: ["admin","administrativo"] },
+  { href: "/delivery",            label: "Entregas",           icon: Package,         roles: ["delivery"] },
+  { href: "/delivery/historial",  label: "Historial",          icon: FileDown,        roles: ["delivery"] },
 ]
 
 const ADMIN_ITEMS = [
@@ -29,13 +31,14 @@ const ADMIN_ITEMS = [
   { href: "/configuracion", label: "Configuracion", icon: Settings, roles: ["admin"] },
 ]
 
-// Bottom nav: las 5 mas usadas en mobile
 const BOTTOM_NAV = [
-  { href: "/dashboard",         label: "Inicio",   icon: LayoutDashboard },
-  { href: "/dispensas/pedidos", label: "Pedidos",  icon: Package },
-  { href: "/dispensas/qr",      label: "QR",       icon: QrCode },
-  { href: "/pacientes",         label: "Pacientes",icon: Users },
-  { href: "/trazabilidad",      label: "Trazab.",  icon: FlaskConical },
+  { href: "/dashboard",          label: "Inicio",    icon: LayoutDashboard, roles: ["admin","administrativo","medico","biologo"] },
+  { href: "/dispensas/pedidos",  label: "Pedidos",   icon: Package,         roles: ["admin","administrativo","medico","biologo"] },
+  { href: "/dispensas/qr",       label: "QR",        icon: QrCode,          roles: ["admin","administrativo"] },
+  { href: "/pacientes",          label: "Pacientes", icon: Users,           roles: ["admin","administrativo","medico","biologo"] },
+  { href: "/trazabilidad",       label: "Trazab.",   icon: FlaskConical,    roles: ["admin","administrativo","biologo"] },
+  { href: "/delivery",           label: "Entregas",  icon: Package,         roles: ["delivery"] },
+  { href: "/delivery/historial", label: "Historial", icon: FileDown,        roles: ["delivery"] },
 ]
 
 export function Sidebar({ role, userName }: { role: UserRole; userName: string }) {
@@ -52,7 +55,7 @@ export function Sidebar({ role, userName }: { role: UserRole; userName: string }
 
   const visibleNav = NAV_ITEMS.filter(item => item.roles.includes(role))
   const visibleAdmin = ADMIN_ITEMS.filter(item => item.roles.includes(role))
-  const visibleBottom = BOTTOM_NAV.filter(item => visibleNav.some(n => n.href === item.href))
+  const visibleBottom = BOTTOM_NAV.filter(item => item.roles.includes(role))
 
   const sidebarContent = (
     <>
@@ -108,12 +111,10 @@ export function Sidebar({ role, userName }: { role: UserRole; userName: string }
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 w-56 bg-[#0f1f12] flex-col z-10 border-r border-[#1a3318]">
         {sidebarContent}
       </aside>
 
-      {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-[#0f1f12] border-b border-[#1a3318] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-[#2d5a27] flex items-center justify-center">
@@ -126,7 +127,6 @@ export function Sidebar({ role, userName }: { role: UserRole; userName: string }
         </button>
       </div>
 
-      {/* Mobile drawer */}
       {mobileOpen && (
         <>
           <div className="md:hidden fixed inset-0 bg-black/60 z-30" onClick={() => setMobileOpen(false)} />
@@ -136,7 +136,6 @@ export function Sidebar({ role, userName }: { role: UserRole; userName: string }
         </>
       )}
 
-      {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-[#0f1f12] border-t border-[#1a3318] flex">
         {visibleBottom.map(item => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/")

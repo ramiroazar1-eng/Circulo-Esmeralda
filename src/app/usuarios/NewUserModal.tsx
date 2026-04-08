@@ -60,6 +60,7 @@ export default function NewUserModal() {
                 <option value="medico">Medico</option>
                 <option value="biologo">Biologo</option>
                 <option value="paciente">Paciente</option>
+                <option value="delivery">Delivery</option>
                 <option value="admin">Administrador</option>
               </select>
             </div>
@@ -91,3 +92,4 @@ export default function NewUserModal() {
     </>
   )
 }
+
