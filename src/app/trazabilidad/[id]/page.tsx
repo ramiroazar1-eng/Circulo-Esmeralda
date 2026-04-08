@@ -16,6 +16,12 @@ const TIMELINE_STEPS = [
   { key: "curing_start_date", label: "Curado" },
 ]
 
+const EVENT_LABELS: Record<string, string> = {
+  poda: "Poda", nutrientes: "Nutrientes", tratamiento: "Tratamiento / preventivo",
+  transplante: "Transplante", riego: "Riego", defoliacion: "Defoliacion",
+  traslado: "Traslado", incidente: "Incidente", descarte: "Descarte parcial", otro: "Otro"
+}
+
 function daysBetween(d1: string, d2: string) {
   return Math.round((new Date(d2).getTime() - new Date(d1).getTime()) / (1000*60*60*24))
 }
@@ -27,14 +33,33 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
   if (!user) redirect("/login")
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   const canEdit = ["admin","biologo","administrativo"].includes(profile?.role ?? "")
-  const { data: lot } = await supabase
-    .from("lots")
-    .select("*, genetic:genetics(name, strain_type, thc_percentage, cbd_percentage), room:rooms(name), stock_position:stock_positions(available_grams, reserved_grams), cycle:production_cycles(name)")
-    .eq("id", id)
-    .single()
+
+  const [lotRes, geneticsRes, roomsRes, eventsRes, costsRes, supplyMovementsRes] = await Promise.all([
+    supabase.from("lots")
+      .select("*, genetic:genetics(name, strain_type, thc_percentage, cbd_percentage), room:rooms(name), stock_position:stock_positions(available_grams, reserved_grams), cycle:production_cycles(name, id)")
+      .eq("id", id).single(),
+    supabase.from("genetics").select("id, name").eq("is_active", true),
+    supabase.from("rooms").select("id, name").eq("is_active", true),
+    supabase.from("cycle_events")
+      .select("id, event_type, event_date, notes, room:rooms(name), is_locked")
+      .eq("lot_id", id)
+      .order("event_date", { ascending: false }),
+    supabase.from("v_lot_costs").select("*").eq("lot_id", id).maybeSingle(),
+    supabase.from("supply_movements")
+      .select("id, movement_type, quantity, unit_cost, total_cost, movement_date, notes, supply_product:supply_products(name, unit)")
+      .eq("lot_id", id)
+      .eq("movement_type", "consumo")
+      .order("movement_date", { ascending: false }),
+  ])
+
+  const lot = lotRes.data
   if (!lot) notFound()
-  const { data: genetics } = await supabase.from("genetics").select("id, name").eq("is_active", true)
-  const { data: rooms } = await supabase.from("rooms").select("id, name").eq("is_active", true)
+  const genetics = geneticsRes.data ?? []
+  const rooms = roomsRes.data ?? []
+  const events = (eventsRes.data ?? []) as any[]
+  const costs = costsRes.data as any
+  const supplyMovements = (supplyMovementsRes.data ?? []) as any[]
+
   const steps = TIMELINE_STEPS.map((step, i) => {
     const date = (lot as any)[step.key]
     const nextStep = TIMELINE_STEPS[i + 1]
@@ -47,6 +72,11 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
   const stockPosition = (lot as any).stock_position
   const dispensed = stockPosition && lot.net_grams
     ? Math.max((lot.net_grams ?? 0) - stockPosition.available_grams - stockPosition.reserved_grams, 0)
+    : null
+
+  const totalSupplyCost = supplyMovements.reduce((acc, m) => acc + (m.total_cost ?? 0), 0)
+  const costPerGramSupply = lot.net_grams && lot.net_grams > 0 && totalSupplyCost > 0
+    ? (totalSupplyCost / lot.net_grams).toFixed(2)
     : null
 
   return (
@@ -62,9 +92,10 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         </div>
         <div className="flex items-center gap-2">
           <QRDisplay entityId={lot.id} entityType="lot" entityName={lot.lot_code} currentToken={lot.qr_token} />
-          {canEdit && <EditLotModal lot={lot} genetics={genetics ?? []} rooms={rooms ?? []} />}
+          {canEdit && <EditLotModal lot={lot} genetics={genetics} rooms={rooms} />}
         </div>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="col-span-2">
           <SectionHeader title="Timeline del ciclo" />
@@ -103,6 +134,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
             ))}
           </div>
         </Card>
+
         <div className="space-y-4">
           <Card>
             <SectionHeader title="Stock" />
@@ -117,6 +149,35 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
               )}
             </dl>
           </Card>
+
+          <Card>
+            <SectionHeader title="Costos del lote" />
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-xs text-[#9ab894]">Insumos consumidos</dt>
+                <dd className="font-semibold text-[#1a2e1a]">{totalSupplyCost > 0 ? `$${totalSupplyCost.toLocaleString("es-AR")}` : "-"}</dd>
+              </div>
+              {costs?.total_cost > 0 && (
+                <div>
+                  <dt className="text-xs text-[#9ab894]">Gastos del ciclo asignados</dt>
+                  <dd className="font-semibold text-[#1a2e1a]">${parseFloat(costs.total_cost).toLocaleString("es-AR")}</dd>
+                </div>
+              )}
+              {costPerGramSupply && (
+                <div className="pt-2 border-t border-[#eef5ea]">
+                  <dt className="text-xs text-[#9ab894]">Costo por gramo (insumos)</dt>
+                  <dd className="text-lg font-black text-[#2d6a1f]">${costPerGramSupply}</dd>
+                </div>
+              )}
+              {costs?.cost_per_gram && (
+                <div className="pt-2 border-t border-[#eef5ea]">
+                  <dt className="text-xs text-[#9ab894]">Costo por gramo (ciclo)</dt>
+                  <dd className="text-lg font-black text-[#1a2e1a]">${parseFloat(costs.cost_per_gram).toFixed(2)}</dd>
+                </div>
+              )}
+            </dl>
+          </Card>
+
           {(lot as any).genetic && (
             <Card>
               <SectionHeader title="Genetica" />
@@ -128,9 +189,54 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
               </dl>
             </Card>
           )}
+
           {lot.notes && <Card><SectionHeader title="Notas" /><p className="text-sm text-[#6b8c65]">{lot.notes}</p></Card>}
         </div>
       </div>
+
+      {supplyMovements.length > 0 && (
+        <Card padding={false}>
+          <div className="px-5 pt-5 pb-4">
+            <SectionHeader title="Insumos consumidos" />
+            <p className="text-xs text-[#6b8c65] mt-1">Total: <span className="font-bold text-[#1a2e1a]">${totalSupplyCost.toLocaleString("es-AR")}</span></p>
+          </div>
+          <div className="divide-y divide-[#f5faf3]">
+            {supplyMovements.map((m: any) => (
+              <div key={m.id} className="px-5 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#1a2e1a]">{m.supply_product?.name ?? "-"}</p>
+                  <p className="text-xs text-[#9ab894]">{formatDate(m.movement_date)} - {m.quantity} {m.supply_product?.unit ?? ""}{m.unit_cost ? ` - $${m.unit_cost}/u` : ""}</p>
+                  {m.notes && <p className="text-xs text-[#6b8c65] italic">{m.notes}</p>}
+                </div>
+                <span className="text-sm font-bold text-[#1a2e1a] shrink-0 ml-4">
+                  {m.total_cost ? `$${parseFloat(m.total_cost).toLocaleString("es-AR")}` : "-"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {events.length > 0 && (
+        <Card padding={false}>
+          <div className="px-5 pt-5 pb-4"><SectionHeader title="Eventos registrados en este lote" /></div>
+          <div className="divide-y divide-[#f5faf3]">
+            {events.map((ev: any) => (
+              <div key={ev.id} className="px-5 py-3 flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-[#1a2e1a]">{EVENT_LABELS[ev.event_type] ?? ev.event_type}</p>
+                    {ev.is_locked && <span className="text-xs bg-slate-100 text-slate-500 rounded px-1.5 py-0.5">Cerrado</span>}
+                  </div>
+                  {ev.notes && <p className="text-xs text-[#6b8c65] mt-0.5">{ev.notes}</p>}
+                  {ev.room && <p className="text-xs text-[#9ab894] mt-0.5">{ev.room.name}</p>}
+                </div>
+                <span className="text-xs text-[#9ab894] shrink-0 ml-4">{formatDate(ev.event_date)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   )
 }
