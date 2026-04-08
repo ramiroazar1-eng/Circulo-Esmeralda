@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'administrativo' | 'medico' | 'biologo' | 'paciente' | 'delivery'
+﻿export type UserRole = 'admin' | 'administrativo' | 'medico' | 'biologo' | 'paciente' | 'delivery'
 export type PatientStatus = 'activo' | 'pendiente_documental' | 'suspendido' | 'inactivo' | 'baja'
 export type ReprocannStatus = 'vigente' | 'proximo_vencimiento' | 'vencido' | 'pendiente_vinculacion'
 export type DocumentStatus = 'faltante' | 'pendiente_revision' | 'aprobado' | 'observado' | 'vencido' | 'pendiente_vinculacion'
@@ -79,4 +79,31 @@ export interface CurrentMembership {
   patient_id: string; full_name: string; patient_status: PatientStatus; plan_name: string | null
   monthly_amount: number | null; payment_status: PaymentStatus | null; paid_at: string | null
   period_year: number | null; period_month: number | null
+}
+
+export type SupplyCategory = 'fertilizante' | 'sustrato' | 'packaging' | 'limpieza' | 'herramienta' | 'preventivo' | 'otro'
+export type SupplyMovementType = 'compra' | 'consumo' | 'ajuste' | 'merma'
+
+export interface SupplyProduct {
+  id: string; name: string; category: SupplyCategory; unit: string
+  stock_alert_threshold: number; is_active: boolean; notes: string | null
+  created_by: string | null; created_at: string; updated_at: string
+}
+
+export interface SupplyMovement {
+  id: string; supply_product_id: string; movement_type: SupplyMovementType
+  quantity: number; unit_cost: number | null; total_cost: number | null
+  cycle_id: string | null; lot_id: string | null; room_id: string | null
+  notes: string | null; movement_date: string; created_by: string | null; created_at: string
+  supply_product?: SupplyProduct
+}
+
+export interface SupplyStock {
+  id: string; name: string; category: SupplyCategory; unit: string
+  stock_alert_threshold: number; is_active: boolean; stock_actual: number
+}
+
+export interface LotCost {
+  lot_id: string; lot_code: string; net_grams: number | null
+  total_cost: number; cost_per_gram: number | null
 }

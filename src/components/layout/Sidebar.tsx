@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { href: "/manuales",            label: "Manuales",           icon: BookOpen,        roles: ["admin","biologo"] },
   { href: "/documentacion-ong",   label: "Documentacion ONG",  icon: Building2,       roles: ["admin"] },
   { href: "/exportar",            label: "Exportar",           icon: FileDown,        roles: ["admin"] },
+  { href: "/insumos",             label: "Insumos",            icon: Package,         roles: ["admin","biologo"] },
   { href: "/delivery",            label: "Entregas",           icon: Package,         roles: ["delivery"] },
   { href: "/delivery/historial",  label: "Historial",          icon: FileDown,        roles: ["delivery"] },
 ]
