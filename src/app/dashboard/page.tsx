@@ -134,7 +134,6 @@ export default async function DashboardPage() {
                 <div key={d.id} className="flex items-center justify-between px-5 py-3">
                     <p className="text-sm font-medium text-slate-900 truncate">{d.patient?.full_name ?? "—"}</p>
                     <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? "—"} · {formatDate(d.dispensed_at)}</p>
-                    <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? ""”"} · {formatDate(d.dispensed_at)}</p>
                   </div>
                   <span className="text-sm font-medium text-slate-700 tabular-nums">{formatGrams(d.grams)}</span>
                 </div>
