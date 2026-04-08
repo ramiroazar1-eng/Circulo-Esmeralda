@@ -136,7 +136,6 @@ export default async function DashboardPage() {
                     <p className="text-sm font-medium text-slate-900 truncate">{d.patient?.full_name ?? "—"}</p>
                     <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? "—"} · {formatDate(d.dispensed_at)}</p>
                   </div>
-                  </div>
                   <span className="text-sm font-medium text-slate-700 tabular-nums">{formatGrams(d.grams)}</span>
                 </div>
               ))}
@@ -156,7 +155,7 @@ export default async function DashboardPage() {
                 <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${entry.is_incident ? "bg-red-500" : "bg-slate-300"}`} />
                 <div className="min-w-0">
                   <p className="text-sm text-slate-800 truncate">{entry.title}</p>
-                  <p className="text-xs text-slate-400">{formatDate(entry.entry_date)} · {(entry as any).created_by_profile?.full_name ?? ""”"}</p>
+                  <p className="text-xs text-slate-400">{formatDate(entry.entry_date)} · {(entry as any).created_by_profile?.full_name ?? "—"}</p>
                 </div>
               </div>
             ))}
