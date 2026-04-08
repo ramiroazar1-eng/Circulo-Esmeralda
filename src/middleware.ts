@@ -21,32 +21,7 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const { pathname } = request.nextUrl
-
-  if (pathname.startsWith("/login") || pathname.startsWith("/o/") || pathname.startsWith("/l/")) {
-    return supabaseResponse
-  }
-
-  if (!user) {
-    return NextResponse.redirect(new URL("/login", request.url))
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single()
-
-  const role = profile?.role
-
-  if (role === "delivery" && !pathname.startsWith("/delivery")) {
-    return NextResponse.redirect(new URL("/delivery", request.url))
-  }
-
-  if (role !== "delivery" && pathname.startsWith("/delivery")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
-  }
+  await supabase.auth.getUser()
 
   return supabaseResponse
 }
