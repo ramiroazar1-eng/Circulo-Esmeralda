@@ -8,6 +8,7 @@ import NewExpenseModal from "./NewExpenseModal"
 import NewEventModal from "./NewEventModal"
 import CloseCycleButton from "./CloseCycleButton"
 import DailyClosureModal from "./DailyClosureModal"
+import PeriodPdfButton from "./PeriodPdfButton"
 
 const ETAPAS = [
   { key: "seedling_date",     label: "Plantines" },
