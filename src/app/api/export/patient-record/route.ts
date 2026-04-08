@@ -1,7 +1,14 @@
-import { createServiceClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function GET(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  if (!["admin","administrativo"].includes(profile?.role ?? ""))
+    return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
+
   const { searchParams } = new URL(request.url)
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 })
@@ -10,10 +17,7 @@ export async function GET(request: Request) {
 
   const { data: patient } = await service
     .from("patients")
-    .select(`
-      *, treating_physician:profiles!patients_treating_physician_id_fkey(full_name),
-      membership_plan:membership_plans(name, monthly_grams, monthly_amount)
-    `)
+    .select("*, treating_physician:profiles!patients_treating_physician_id_fkey(full_name), membership_plan:membership_plans(name, monthly_grams, monthly_amount)")
     .eq("id", id).single()
 
   if (!patient) return NextResponse.json({ error: "No encontrado" }, { status: 404 })
@@ -31,24 +35,20 @@ export async function GET(request: Request) {
     .order("dispensed_at", { ascending: false })
     .limit(20)
 
+  function esc(s: string | null | undefined): string {
+    return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+  }
+
   const now = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
-  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR") : "—"
-
-  const docStatusLabel = (s: string) => ({
-    faltante: "FALTANTE", pendiente_revision: "Pendiente", aprobado: "Aprobado",
-    observado: "Observado", vencido: "VENCIDO", pendiente_vinculacion: "Sin vincular"
-  }[s] ?? s)
-
-  const reprocannLabel = (s: string) => ({
-    vigente: "Vigente", proximo_vencimiento: "Proximo a vencer",
-    vencido: "VENCIDO", pendiente_vinculacion: "Sin vincular"
-  }[s] ?? s)
+  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR") : "-"
+  const docStatusLabel = (s: string) => ({ faltante: "FALTANTE", pendiente_revision: "Pendiente", aprobado: "Aprobado", observado: "Observado", vencido: "VENCIDO", pendiente_vinculacion: "Sin vincular" }[s] ?? s)
+  const reprocannLabel = (s: string) => ({ vigente: "Vigente", proximo_vencimiento: "Proximo a vencer", vencido: "VENCIDO", pendiente_vinculacion: "Sin vincular" }[s] ?? s)
 
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Legajo - ${patient.full_name}</title>
+<title>Legajo - ${esc(patient.full_name)}</title>
 <style>
   body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; margin: 24px; }
   h1 { font-size: 18px; margin-bottom: 2px; }
@@ -64,71 +64,43 @@ export async function GET(request: Request) {
   .warn { color: #92400e; font-weight: 600; }
   .danger { color: #991b1b; font-weight: 600; }
   .footer { margin-top: 24px; color: #94a3b8; font-size: 10px; border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; }
-  @media print { body { margin: 12px; } }
 </style>
 </head>
 <body>
-<h1>${patient.full_name}</h1>
-<div class="meta">DNI ${patient.dni} · Alta: ${formatDate(patient.created_at)} · Generado: ${now}</div>
-
+<h1>${esc(patient.full_name)}</h1>
+<div class="meta">DNI ${esc(patient.dni)} - Alta: ${formatDate(patient.created_at)} - Generado: ${now}</div>
 <h2>Datos personales</h2>
 <div class="grid">
-  <div class="field"><label>Nombre completo</label><span>${patient.full_name}</span></div>
-  <div class="field"><label>DNI</label><span>${patient.dni}</span></div>
+  <div class="field"><label>Nombre completo</label><span>${esc(patient.full_name)}</span></div>
+  <div class="field"><label>DNI</label><span>${esc(patient.dni)}</span></div>
   ${patient.birth_date ? `<div class="field"><label>Fecha de nacimiento</label><span>${formatDate(patient.birth_date)}</span></div>` : ""}
-  ${patient.phone ? `<div class="field"><label>Telefono</label><span>${patient.phone}</span></div>` : ""}
-  ${patient.email ? `<div class="field"><label>Email</label><span>${patient.email}</span></div>` : ""}
-  ${patient.address ? `<div class="field"><label>Direccion</label><span>${patient.address}</span></div>` : ""}
-  ${(patient as any).treating_physician ? `<div class="field"><label>Medico tratante</label><span>${(patient as any).treating_physician.full_name}</span></div>` : ""}
+  ${patient.phone ? `<div class="field"><label>Telefono</label><span>${esc(patient.phone)}</span></div>` : ""}
+  ${patient.email ? `<div class="field"><label>Email</label><span>${esc(patient.email)}</span></div>` : ""}
+  ${patient.address ? `<div class="field"><label>Direccion</label><span>${esc(patient.address)}</span></div>` : ""}
+  ${(patient as any).treating_physician ? `<div class="field"><label>Medico tratante</label><span>${esc((patient as any).treating_physician.full_name)}</span></div>` : ""}
 </div>
-
 <h2>REPROCANN</h2>
 <div class="grid">
   <div class="field"><label>Estado</label><span class="${patient.reprocann_status === "vigente" ? "ok" : patient.reprocann_status === "vencido" ? "danger" : "warn"}">${reprocannLabel(patient.reprocann_status)}</span></div>
-  ${patient.reprocann_ref ? `<div class="field"><label>Numero</label><span>${patient.reprocann_ref}</span></div>` : ""}
+  ${patient.reprocann_ref ? `<div class="field"><label>Numero</label><span>${esc(patient.reprocann_ref)}</span></div>` : ""}
   ${patient.reprocann_expiry ? `<div class="field"><label>Vencimiento</label><span>${formatDate(patient.reprocann_expiry)}</span></div>` : ""}
 </div>
-
 <h2>Checklist documental</h2>
 <table>
 <thead><tr><th>Documento</th><th>Obligatorio</th><th>Estado</th><th>Vencimiento</th></tr></thead>
 <tbody>
-${(documents ?? []).map((d: any) => `
-<tr>
-  <td>${d.doc_type?.name ?? "—"}</td>
-  <td>${d.doc_type?.is_mandatory ? "Si" : "No"}</td>
-  <td class="${d.status === "aprobado" ? "ok" : ["faltante","vencido"].includes(d.status) ? "danger" : "warn"}">${docStatusLabel(d.status)}</td>
-  <td>${d.expires_at ? formatDate(d.expires_at) : "—"}</td>
-</tr>`).join("")}
+${(documents ?? []).map((d: any) => `<tr><td>${esc(d.doc_type?.name)}</td><td>${d.doc_type?.is_mandatory ? "Si" : "No"}</td><td class="${d.status === "aprobado" ? "ok" : ["faltante","vencido"].includes(d.status) ? "danger" : "warn"}">${docStatusLabel(d.status)}</td><td>${d.expires_at ? formatDate(d.expires_at) : "-"}</td></tr>`).join("")}
 </tbody>
 </table>
-
-${(dispenses ?? []).length > 0 ? `
-<h2>Ultimas dispensas</h2>
-<table>
-<thead><tr><th>Fecha</th><th>Producto</th><th>Lote</th><th>Cantidad</th></tr></thead>
-<tbody>
-${dispenses!.map((d: any) => `
-<tr>
-  <td>${formatDate(d.dispensed_at)}</td>
-  <td>${d.product_desc}</td>
-  <td style="font-family:monospace">${d.lot?.lot_code ?? "—"}</td>
-  <td>${d.grams}g</td>
-</tr>`).join("")}
-</tbody>
-</table>` : ""}
-
-<div class="footer">
-  <span>Sistema interno ONG Cannabis Medicinal</span>
-  <span>Documento confidencial · ${now}</span>
-</div>
+${(dispenses ?? []).length > 0 ? `<h2>Ultimas dispensas</h2><table><thead><tr><th>Fecha</th><th>Producto</th><th>Lote</th><th>Cantidad</th></tr></thead><tbody>${dispenses!.map((d: any) => `<tr><td>${formatDate(d.dispensed_at)}</td><td>${esc(d.product_desc)}</td><td style="font-family:monospace">${esc((d.lot as any)?.lot_code)}</td><td>${d.grams}g</td></tr>`).join("")}</tbody></table>` : ""}
+<div class="footer"><span>Sistema interno ONG Cannabis Medicinal</span><span>Documento confidencial - ${now}</span></div>
 </body>
 </html>`
 
   return new NextResponse(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Content-Disposition": `attachment; filename="legajo-${patient.full_name.replace(/\s+/g, "-")}.html"`
+      "Content-Disposition": `attachment; filename="legajo-${esc(patient.full_name).replace(/\s+/g, "-")}.html"`
     }
   })
 }
