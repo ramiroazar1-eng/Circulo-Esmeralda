@@ -1,8 +1,13 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { createHash } from "crypto"
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+function hashOTP(otp: string): string {
+  return createHash("sha256").update(otp).digest("hex")
 }
 
 export async function POST(request: Request) {
@@ -16,7 +21,6 @@ export async function POST(request: Request) {
 
   const service = await createServiceClient()
 
-  // Verificar que no haya firma existente
   const { data: existing } = await service
     .from("document_signatures")
     .select("id, status")
@@ -24,23 +28,18 @@ export async function POST(request: Request) {
     .eq("template_id", template_id)
     .eq("status", "firmado")
     .maybeSingle()
-
   if (existing) return NextResponse.json({ error: "El documento ya fue firmado" }, { status: 400 })
 
-  // Obtener template
   const { data: template } = await service
     .from("document_templates")
     .select("version")
     .eq("id", template_id)
     .single()
-
   if (!template) return NextResponse.json({ error: "Template no encontrado" }, { status: 404 })
 
-  // Generar OTP
   const otp = generateOTP()
-  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutos
+  const otpHash = hashOTP(otp)
 
-  // Upsert signature record con OTP
   const { data: sig, error: sigError } = await service
     .from("document_signatures")
     .upsert({
@@ -48,17 +47,15 @@ export async function POST(request: Request) {
       template_id,
       template_version: template.version,
       status: "pendiente",
-      otp_code: otp,
+      otp_code: otpHash,
       otp_sent_at: new Date().toISOString(),
       otp_verified: false,
       updated_at: new Date().toISOString()
     }, { onConflict: "patient_id,template_id" })
     .select()
     .single()
-
   if (sigError) return NextResponse.json({ error: sigError.message }, { status: 400 })
 
-  // Enviar OTP por email via Brevo
   try {
     await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
