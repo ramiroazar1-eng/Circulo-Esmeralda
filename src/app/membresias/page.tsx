@@ -55,7 +55,7 @@ export default async function MembresiasPage() {
       </div>
       <PageHeader
         title="Membresias"
-        description={`${MONTHS[currentMonth - 1]} ${currentYear} Â· Estado de pagos`}
+        description={`${MONTHS[currentMonth - 1]} ${currentYear} · Estado de pagos`}
         actions={<NewPaymentModal patients={patientList} currentMonth={currentMonth} currentYear={currentYear} />}
       />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -64,7 +64,7 @@ export default async function MembresiasPage() {
         <StatCard label="Recaudado" value={`$${totalRecaudado.toLocaleString("es-AR")}`} icon={CreditCard} />
       </div>
       <Card padding={false}>
-        <div className="px-5 pt-5 pb-4"><SectionHeader title={`Estado de pagos â€” ${MONTHS[currentMonth - 1]} ${currentYear}`} /></div>
+        <div className="px-5 pt-5 pb-4"><SectionHeader title={`Estado de pagos "” ${MONTHS[currentMonth - 1]} ${currentYear}`} /></div>
         {patientList.length === 0 ? (
           <div className="pb-5"><EmptyState title="Sin pacientes con membresia activa" icon={CreditCard} /></div>
         ) : (
@@ -78,7 +78,7 @@ export default async function MembresiasPage() {
                   <tr key={p.id}>
                     <td className="font-medium text-[#1a2e1a]">{p.full_name}</td>
                     <td className="font-mono text-xs">{p.dni}</td>
-                    <td>{p.membership_plan?.name ?? "â€”"}</td>
+                    <td>{p.membership_plan?.name ?? ""”"}</td>
                     <td className="tabular-nums">${parseFloat(p.membership_plan?.monthly_amount ?? 0).toLocaleString("es-AR")}</td>
                     <td>
                       {isPaid ? (
@@ -112,8 +112,8 @@ export default async function MembresiasPage() {
               {(allPayments as any[]).map((p: any) => (
                 <tr key={p.id}>
                   <td>{new Date(p.payment_date).toLocaleDateString("es-AR")}</td>
-                  <td className="font-medium text-[#1a2e1a]">{p.patient?.full_name ?? "â€”"}</td>
-                  <td>{p.plan?.name ?? "â€”"}</td>
+                  <td className="font-medium text-[#1a2e1a]">{p.patient?.full_name ?? ""”"}</td>
+                  <td>{p.plan?.name ?? ""”"}</td>
                   <td>{MONTHS[p.period_month - 1]} {p.period_year}</td>
                   <td className="tabular-nums font-medium">${parseFloat(p.amount).toLocaleString("es-AR")}</td>
                   <td className="capitalize">{p.payment_method}</td>

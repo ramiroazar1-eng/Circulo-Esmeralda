@@ -7,8 +7,8 @@ import type { ComplianceStatus, ReprocannStatus, DocumentStatus, PatientStatus, 
 export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
 
 export function formatDate(date: string | null | undefined, fmt = 'dd/MM/yyyy'): string {
-  if (!date) return 'â€”'
-  try { return format(parseISO(date), fmt, { locale: es }) } catch { return 'â€”' }
+  if (!date) return '"”'
+  try { return format(parseISO(date), fmt, { locale: es }) } catch { return '"”' }
 }
 export function formatDateTime(date: string | null | undefined): string {
   return formatDate(date, "dd/MM/yyyy 'a las' HH:mm")
@@ -26,7 +26,7 @@ export const REPROCANN_STATUS_LABELS: Record<ReprocannStatus, string> = {
   vigente: 'Vigente', proximo_vencimiento: 'Próximo a vencer', vencido: 'Vencido', pendiente_vinculacion: 'Pendiente de vinculación'
 }
 export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {
-  faltante: 'Faltante', pendiente_revision: 'Pendiente de revisiÃ³n', aprobado: 'Aprobado',
+  faltante: 'Faltante', pendiente_revision: 'Pendiente de revisión', aprobado: 'Aprobado',
   observado: 'Observado', vencido: 'Vencido', pendiente_vinculacion: 'Pendiente de vinculación'
 }
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = { pendiente: 'Pendiente', pagado: 'Pagado', vencido: 'Vencido', exento: 'Exento' }
@@ -59,13 +59,13 @@ export function getPatientStatusClasses(status: PatientStatus) {
   return { activo: 'bg-green-50 text-green-700 border-green-200', pendiente_documental: 'bg-amber-50 text-amber-700 border-amber-200', suspendido: 'bg-red-50 text-red-700 border-red-200', inactivo: 'bg-slate-50 text-slate-500 border-slate-200', baja: 'bg-slate-100 text-slate-400 border-slate-200' }[status]
 }
 export function formatARS(amount: number | null | undefined): string {
-  if (amount == null) return 'â€”'
+  if (amount == null) return '"”'
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)
 }
-export function formatGrams(grams: number | null | undefined): string { if (grams == null) return 'â€”'; return `${grams.toFixed(1)}g` }
+export function formatGrams(grams: number | null | undefined): string { if (grams == null) return '"”'; return `${grams.toFixed(1)}g` }
 export function formatPeriod(year: number, month: number): string { return `${MONTH_LABELS[month]} ${year}` }
 export function formatFileSize(bytes: number | null | undefined): string {
-  if (!bytes) return 'â€”'
+  if (!bytes) return '"”'
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`

@@ -13,6 +13,7 @@ export default function NewLotModal({ genetics, rooms }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successCycle, setSuccessCycle] = useState<string | null>(null)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -31,10 +32,18 @@ export default function NewLotModal({ genetics, rooms }: Props) {
     })
     const json = await res.json()
     if (!res.ok) { setError(json.error ?? "Error al crear lote"); setLoading(false); return }
-    setLoading(false); setOpen(false); router.refresh()
+    setLoading(false)
+    setOpen(false)
+    if (json.cycle_name) setSuccessCycle(json.cycle_name)
+    router.refresh()
   }
 
-  if (!open) return <Button size="sm" onClick={() => setOpen(true)}><Plus className="w-3.5 h-3.5" />Nuevo lote</Button>
+  if (!open) return (
+    <div className="flex items-center gap-2">
+      <Button size="sm" onClick={() => { setOpen(true); setSuccessCycle(null) }}><Plus className="w-3.5 h-3.5" />Nuevo lote</Button>
+      {successCycle && <span className="text-xs text-[#2d6a1f] bg-[#edf7e8] border border-[#b8daa8] rounded-lg px-2.5 py-1.5">Lote asignado a {successCycle}</span>}
+    </div>
+  )
 
   return (
     <>
