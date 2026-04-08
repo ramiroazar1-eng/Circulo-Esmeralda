@@ -9,7 +9,21 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
 const NAV_ITEMS = [
-  { href: "/dashboard",           label: "Dashboard",          icon: LayoutDashboard, roles: ["admin","administrativo"] },
+  { href: "/dashboard",           label: "Dashboard",          icon: LayoutDashboard, roles: ["admin"] },
+  { href: "/pacientes",           label: "Pacientes",          icon: Users,           roles: ["admin","medico"] },
+  { href: "/dispensas/pedidos",   label: "Pedidos",            icon: Package,         roles: ["admin","administrativo"] },
+  { href: "/dispensas/qr",        label: "Dispensa por QR",    icon: QrCode,          roles: ["admin","administrativo"] },
+  { href: "/dispensas",           label: "Dispensas",          icon: Pill,            roles: ["admin","administrativo"] },
+  { href: "/trazabilidad",        label: "Trazabilidad",       icon: FlaskConical,    roles: ["admin","administrativo","biologo"] },
+  { href: "/ciclos",              label: "Ciclos",             icon: FlaskConical,    roles: ["admin","administrativo","biologo"] },
+  { href: "/membresias",          label: "Membresias",         icon: CreditCard,      roles: ["admin"] },
+  { href: "/bitacora",            label: "Bitacora",           icon: BookOpen,        roles: ["admin","biologo"] },
+  { href: "/manuales",            label: "Manuales",           icon: BookOpen,        roles: ["admin","biologo"] },
+  { href: "/documentacion-ong",   label: "Documentacion ONG",  icon: Building2,       roles: ["admin"] },
+  { href: "/exportar",            label: "Exportar",           icon: FileDown,        roles: ["admin"] },
+  { href: "/delivery",            label: "Entregas",           icon: Package,         roles: ["delivery"] },
+  { href: "/delivery/historial",  label: "Historial",          icon: FileDown,        roles: ["delivery"] },
+] },
   { href: "/pacientes",           label: "Pacientes",          icon: Users,           roles: ["admin","administrativo","medico"] },
   { href: "/dispensas/pedidos",   label: "Pedidos",            icon: Package,         roles: ["admin","administrativo","biologo"] },
   { href: "/dispensas/qr",        label: "Dispensa por QR",    icon: QrCode,          roles: ["admin","administrativo"] },
@@ -32,7 +46,14 @@ const ADMIN_ITEMS = [
 ]
 
 const BOTTOM_NAV = [
-  { href: "/dashboard",          label: "Inicio",    icon: LayoutDashboard, roles: ["admin","administrativo","medico","biologo"] },
+  { href: "/dashboard",          label: "Inicio",    icon: LayoutDashboard, roles: ["admin"] },
+  { href: "/dispensas/pedidos",  label: "Pedidos",   icon: Package,         roles: ["admin","administrativo"] },
+  { href: "/dispensas/qr",       label: "QR",        icon: QrCode,          roles: ["admin","administrativo"] },
+  { href: "/pacientes",          label: "Pacientes", icon: Users,           roles: ["admin","medico"] },
+  { href: "/trazabilidad",       label: "Trazab.",   icon: FlaskConical,    roles: ["admin","administrativo","biologo"] },
+  { href: "/delivery",           label: "Entregas",  icon: Package,         roles: ["delivery"] },
+  { href: "/delivery/historial", label: "Historial", icon: FileDown,        roles: ["delivery"] },
+] },
   { href: "/dispensas/pedidos",  label: "Pedidos",   icon: Package,         roles: ["admin","administrativo","medico","biologo"] },
   { href: "/dispensas/qr",       label: "QR",        icon: QrCode,          roles: ["admin","administrativo"] },
   { href: "/pacientes",          label: "Pacientes", icon: Users,           roles: ["admin","administrativo","medico","biologo"] },
