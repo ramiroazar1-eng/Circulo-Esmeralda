@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base; /* deploy */
 @tailwind components;
 @tailwind utilities;
 
@@ -18,3 +18,4 @@
   .nav-item { @apply flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors duration-150; }
   .nav-item.active { @apply bg-slate-900 text-white hover:bg-slate-800 hover:text-white; }
 }
+
