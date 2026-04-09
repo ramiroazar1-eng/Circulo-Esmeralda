@@ -1,28 +1,38 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Bell, BellOff } from "lucide-react"
+import { Bell, BellOff, BellRing } from "lucide-react"
 
 export function PushNotifications() {
   const [supported, setSupported] = useState(false)
   const [subscribed, setSubscribed] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if ("serviceWorker" in navigator && "PushManager" in window) {
-      setSupported(true)
-      checkSubscription()
-    }
+    const ok = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window
+    setSupported(ok)
+    if (ok) checkSubscription()
   }, [])
 
   async function checkSubscription() {
-    const reg = await navigator.serviceWorker.ready
-    const sub = await reg.pushManager.getSubscription()
-    setSubscribed(!!sub)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      setSubscribed(!!sub)
+    } catch {}
   }
 
   async function handleToggle() {
     setLoading(true)
+    setError(null)
     try {
+      const permission = await Notification.requestPermission()
+      if (permission !== "granted") {
+        setError("Permiso denegado. Habilitalo en configuracion del sitio.")
+        setLoading(false)
+        return
+      }
+
       const reg = await navigator.serviceWorker.ready
       const existing = await reg.pushManager.getSubscription()
 
@@ -37,11 +47,11 @@ export function PushNotifications() {
       } else {
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!)
         })
         const key = sub.getKey("p256dh")
         const auth = sub.getKey("auth")
-        await fetch("/api/push/subscribe", {
+        const res = await fetch("/api/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -50,10 +60,15 @@ export function PushNotifications() {
             auth: auth ? btoa(String.fromCharCode(...new Uint8Array(auth))) : "",
           })
         })
-        setSubscribed(true)
+        if (!res.ok) {
+          const d = await res.json()
+          setError(d.error ?? "Error al suscribir")
+        } else {
+          setSubscribed(true)
+        }
       }
-    } catch (err) {
-      console.error("Push error:", err)
+    } catch (err: any) {
+      setError(err?.message ?? "Error desconocido")
     }
     setLoading(false)
   }
@@ -61,16 +76,32 @@ export function PushNotifications() {
   if (!supported) return null
 
   return (
-    <button
-      onClick={handleToggle}
-      disabled={loading}
-      title={subscribed ? "Desactivar notificaciones" : "Activar notificaciones"}
-      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12.5px] font-medium transition-colors w-full text-left text-[#7a9e74] hover:bg-white/5 hover:text-[#c8f0b8] disabled:opacity-50"
-    >
-      {subscribed
-        ? <><BellOff className="w-4 h-4 shrink-0" /><span>Notificaciones activas</span></>
-        : <><Bell className="w-4 h-4 shrink-0" /><span>Activar notificaciones</span></>
-      }
-    </button>
+    <div>
+      <button
+        onClick={handleToggle}
+        disabled={loading}
+        className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left text-[12.5px] font-medium text-[#7a9e74] hover:bg-white/5 hover:text-[#c8f0b8] transition-colors disabled:opacity-50"
+      >
+        {loading
+          ? <BellRing className="w-4 h-4 shrink-0 animate-pulse" />
+          : subscribed
+            ? <BellOff className="w-4 h-4 shrink-0" />
+            : <Bell className="w-4 h-4 shrink-0" />
+        }
+        <span>{loading ? "Configurando..." : subscribed ? "Notif. activas" : "Activar notif."}</span>
+      </button>
+      {error && <p className="text-[10px] text-red-400 px-3 pb-1">{error}</p>}
+    </div>
   )
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
 }
