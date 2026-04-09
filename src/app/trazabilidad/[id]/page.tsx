@@ -4,6 +4,7 @@ import { BackButton } from "@/components/ui/BackButton"
 import { Card, SectionHeader } from "@/components/ui"
 import { formatDate, formatGrams } from "@/lib/utils"
 import EditLotModal from "../EditLotModal"
+import TransferLotModal from "../TransferLotModal"
 import QRDisplay from "@/components/qr/QRDisplay"
 
 const TIMELINE_STEPS = [
@@ -34,9 +35,9 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   const canEdit = ["admin","biologo","administrativo"].includes(profile?.role ?? "")
 
-  const [lotRes, geneticsRes, roomsRes, eventsRes, costsRes, supplyMovementsRes] = await Promise.all([
+  const [lotRes, geneticsRes, roomsRes, eventsRes, costsRes, supplyMovementsRes, roomHistoryRes] = await Promise.all([
     supabase.from("lots")
-      .select("*, genetic:genetics(name, strain_type, thc_percentage, cbd_percentage), room:rooms(name), stock_position:stock_positions(available_grams, reserved_grams), cycle:production_cycles(name, id)")
+      .select("*, genetic:genetics(name, strain_type, thc_percentage, cbd_percentage), room:rooms(id, name), stock_position:stock_positions(available_grams, reserved_grams), cycle:production_cycles(name, id)")
       .eq("id", id).single(),
     supabase.from("genetics").select("id, name").eq("is_active", true),
     supabase.from("rooms").select("id, name").eq("is_active", true),
@@ -46,10 +47,14 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
       .order("event_date", { ascending: false }),
     supabase.from("v_lot_costs").select("*").eq("lot_id", id).maybeSingle(),
     supabase.from("supply_movements")
-      .select("id, movement_type, quantity, unit_cost, total_cost, movement_date, notes, supply_product:supply_products(name, unit)")
+      .select("id, quantity, unit_cost, total_cost, movement_date, notes, supply_product:supply_products(name, unit), room:rooms(id, name), lot:lots(lot_code), created_by_profile:profiles!supply_movements_created_by_fkey(full_name)")
       .eq("lot_id", id)
       .eq("movement_type", "consumo")
       .order("movement_date", { ascending: false }),
+    supabase.from("lot_room_history")
+      .select("id, room:rooms(name), entered_at, exited_at, notes")
+      .eq("lot_id", id)
+      .order("entered_at", { ascending: true }),
   ])
 
   const lot = lotRes.data
@@ -59,6 +64,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
   const events = (eventsRes.data ?? []) as any[]
   const costs = costsRes.data as any
   const supplyMovements = (supplyMovementsRes.data ?? []) as any[]
+  const roomHistory = (roomHistoryRes.data ?? []) as any[]
 
   const steps = TIMELINE_STEPS.map((step, i) => {
     const date = (lot as any)[step.key]
@@ -90,8 +96,17 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
             {(lot as any).cycle && ` - ${(lot as any).cycle.name}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <QRDisplay entityId={lot.id} entityType="lot" entityName={lot.lot_code} currentToken={lot.qr_token} />
+          {canEdit && (
+            <TransferLotModal
+              lotId={lot.id}
+              lotCode={lot.lot_code}
+              currentRoomId={(lot as any).room?.id ?? null}
+              currentRoomName={(lot as any).room?.name ?? null}
+              rooms={rooms}
+            />
+          )}
           {canEdit && <EditLotModal lot={lot} genetics={genetics} rooms={rooms} />}
         </div>
       </div>
@@ -136,6 +151,39 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         </Card>
 
         <div className="space-y-4">
+          <Card>
+            <SectionHeader title="Ubicacion" />
+            <div className="space-y-2">
+              <div>
+                <p className="text-xs text-[#9ab894]">Sala actual</p>
+                <p className="text-sm font-semibold text-[#1a2e1a]">{(lot as any).room?.name ?? "Sin sala"}</p>
+              </div>
+              {roomHistory.length > 0 && (
+                <div>
+                  <p className="text-xs text-[#9ab894] mb-1.5">Historial de salas</p>
+                  <div className="space-y-1.5">
+                    {roomHistory.map((h: any, i: number) => (
+                      <div key={h.id} className="flex items-start gap-2">
+                        <div className={`w-2 h-2 rounded-full shrink-0 mt-1 ${i === roomHistory.length - 1 ? "bg-[#2d5a27]" : "bg-[#c8dcc4]"}`} />
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-[#1a2e1a]">{h.room?.name ?? "-"}</p>
+                          <p className="text-xs text-[#9ab894]">
+                            {formatDate(h.entered_at)}
+                            {h.exited_at ? ` al ${formatDate(h.exited_at)}` : " - hoy"}
+                          </p>
+                          {h.notes && <p className="text-xs text-[#6b8c65] italic">{h.notes}</p>}
+                        </div>
+                        {i === roomHistory.length - 1 && (
+                          <span className="text-xs bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8] rounded px-1.5 py-0.5 shrink-0">actual</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
           <Card>
             <SectionHeader title="Stock" />
             <dl className="space-y-3 text-sm">
