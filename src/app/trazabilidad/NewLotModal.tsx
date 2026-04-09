@@ -47,7 +47,7 @@ export default function NewLotModal({ genetics, rooms }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setOpen(false)} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setOpen(false)} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-xl border border-[#ddecd8] shadow-xl w-full max-w-md">
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#eef5ea]">

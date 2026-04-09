@@ -27,7 +27,7 @@ export default function NewRoomModal() {
   if (!open) return <Button size="sm" onClick={() => setOpen(true)}><Plus className="w-3.5 h-3.5" />Nueva sala</Button>
   return (
     <>
-      <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setOpen(false)} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setOpen(false)} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg border border-slate-200 shadow-xl w-full max-w-sm">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">

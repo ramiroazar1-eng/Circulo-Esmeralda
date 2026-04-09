@@ -55,7 +55,7 @@ export default function NewPaymentModal({ patients, currentMonth, currentYear, p
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setOpen(false)} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setOpen(false)} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-xl border border-[#ddecd8] shadow-xl w-full max-w-md">
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#eef5ea]">
@@ -69,7 +69,7 @@ export default function NewPaymentModal({ patients, currentMonth, currentYear, p
               <select name="patient_id" required defaultValue={preselectedPatient?.id ?? ""} className="input-ong">
                 <option value="">Seleccionar paciente...</option>
                 {patients.map(p => (
-                  <option key={p.id} value={p.id}>{p.full_name} — {p.membership_plan?.name}</option>
+                  <option key={p.id} value={p.id}>{p.full_name} â€” {p.membership_plan?.name}</option>
                 ))}
               </select>
             </div>
@@ -81,7 +81,7 @@ export default function NewPaymentModal({ patients, currentMonth, currentYear, p
                 </select>
               </div>
               <div>
-                <label className="label-ong">Año *</label>
+                <label className="label-ong">AÃ±o *</label>
                 <input name="period_year" type="number" required defaultValue={currentYear} className="input-ong" />
               </div>
             </div>
