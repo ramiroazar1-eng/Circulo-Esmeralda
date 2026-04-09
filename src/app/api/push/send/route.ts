@@ -2,19 +2,18 @@ import { createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import webpush from "web-push"
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
-
 export async function POST(request: Request) {
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL!,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+
   const { title, body, order_id } = await request.json()
   if (!title || !body) return NextResponse.json({ error: "Faltan datos" }, { status: 400 })
 
   const service = await createServiceClient()
 
-  // Obtener suscripciones de admin y administrativos
   const { data: profiles } = await service
     .from("profiles")
     .select("id")
@@ -37,7 +36,7 @@ export async function POST(request: Request) {
   const payload = JSON.stringify({
     title,
     body,
-    url: order_id ? `/dispensas/pedidos` : "/dashboard",
+    url: order_id ? "/dispensas/pedidos" : "/dashboard",
     icon: "/icons/icon-192x192.png",
   })
 
@@ -53,13 +52,11 @@ export async function POST(request: Request) {
       sent++
     } catch (err: any) {
       if (err.statusCode === 410 || err.statusCode === 404) {
-        // Suscripcion expirada - eliminar
         failed.push(sub.id)
       }
     }
   }
 
-  // Limpiar suscripciones expiradas
   if (failed.length > 0) {
     await service.from("push_subscriptions").delete().in("id", failed)
   }
