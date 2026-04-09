@@ -47,7 +47,7 @@ export function PushNotifications() {
       } else {
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array("BFSmwxBryW9PZGTLuVxVTOnHIeEoetMjbaIxO-94dtHF1F1yy2GaRssNmG7BQa0hwXlrASR4r0QVPxB-f7_4jrg")
+          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!)
         })
         const key = sub.getKey("p256dh")
         const auth = sub.getKey("auth")
