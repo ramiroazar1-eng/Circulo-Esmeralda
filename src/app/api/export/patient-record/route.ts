@@ -97,6 +97,15 @@ ${(dispenses ?? []).length > 0 ? `<h2>Ultimas dispensas</h2><table><thead><tr><t
 </body>
 </html>`
 
+  await supabase.from("audit_logs").insert({
+    performed_by: user.id,
+    action: "exportar",
+    entity_type: "patients",
+    entity_id: id,
+    entity_label: `Legajo exportado: ${patient.full_name}`,
+    performed_at: new Date().toISOString()
+  }).then(() => {})
+
   return new NextResponse(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",

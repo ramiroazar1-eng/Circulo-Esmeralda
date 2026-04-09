@@ -76,5 +76,16 @@ export async function POST(request: Request) {
   const { error } = await service.from("orders").update(updateData).eq("id", order_id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+  await service.from("audit_logs").insert({
+    performed_by: user.id,
+    action: "cambiar_estado",
+    entity_type: "orders",
+    entity_id: order_id,
+    entity_label: `Pedido ${order_id} -> ${status}`,
+    previous_state: { status: order.status },
+    new_state: { status },
+    performed_at: new Date().toISOString()
+  }).then(() => {})
+
   return NextResponse.json({ success: true })
 }

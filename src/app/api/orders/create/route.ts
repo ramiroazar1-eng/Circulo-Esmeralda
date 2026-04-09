@@ -23,6 +23,15 @@ export async function POST(request: Request) {
   }
 
   const service = await createServiceClient()
+
+  // Si es paciente, validar que el patient_id corresponda a su perfil
+  const { data: requesterProfile } = await supabase.from("profiles").select("role, patient_id").eq("id", user.id).single()
+  if (requesterProfile?.role === "paciente") {
+    if (requesterProfile.patient_id !== patient_id) {
+      return NextResponse.json({ error: "Sin permisos para crear pedidos en nombre de otro paciente" }, { status: 403 })
+    }
+  }
+
   const totalGrams = items.reduce((acc: number, item: any) => acc + parseFloat(item.grams), 0)
 
   for (const item of items) {

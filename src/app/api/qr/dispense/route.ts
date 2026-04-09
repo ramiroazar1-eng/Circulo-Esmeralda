@@ -30,5 +30,16 @@ export async function POST(request: Request) {
     .select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  await service.from("audit_logs").insert({
+    performed_by: user.id,
+    action: "dispensar",
+    entity_type: "dispenses",
+    entity_id: dispense.id,
+    entity_label: `${patientId} - ${grams}g lote ${lotId}`,
+    new_state: { patient_id: patientId, lot_id: lotId, grams, source: "presencial" },
+    performed_at: new Date().toISOString()
+  }).then(() => {})
+
   return NextResponse.json({ success: true, dispense })
 }
