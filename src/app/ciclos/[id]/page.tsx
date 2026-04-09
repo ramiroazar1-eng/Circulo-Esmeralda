@@ -8,6 +8,7 @@ import NewExpenseModal from "./NewExpenseModal"
 import NewEventModal from "./NewEventModal"
 import CloseCycleButton from "./CloseCycleButton"
 import DailyClosureModal from "./DailyClosureModal"
+import QuickActionsPanel from "./QuickActionsPanel"
 import PeriodPdfButton from "./PeriodPdfButton"
 
 const ETAPAS = [
@@ -41,20 +42,29 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [cycleRes, expensesRes, eventsRes, roomsRes, closuresRes] = await Promise.all([
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  const role = profile?.role ?? ""
+  const isAdmin = role === "admin"
+  const canEdit = ["admin","biologo","administrativo"].includes(role)
+
+  const [cycleRes, expensesRes, eventsRes, roomsRes, closuresRes, productsRes] = await Promise.all([
     supabase.from("production_cycles")
-      .select("*, lots(id, lot_code, status, net_grams, gross_grams, seedling_date, veg_date, flower_date, harvest_date, drying_start_date, drying_days, curing_start_date, curing_days, genetic:genetics(name))")
+      .select("*, lots(id, lot_code, status, net_grams, gross_grams, seedling_date, veg_date, flower_date, harvest_date, drying_start_date, drying_days, curing_start_date, curing_days, genetic:genetics(name), room:rooms(name))")
       .eq("id", id).single(),
     supabase.from("cycle_expense_allocations")
       .select("allocated_amount, expense:cycle_expenses(id, category, description, supplier, total_amount, useful_cycles, purchase_date, notes)")
       .eq("cycle_id", id)
       .order("created_at", { ascending: false }),
     supabase.from("cycle_events")
-      .select("id, event_type, event_date, notes, lot:lots(lot_code), room:rooms(name)")
+      .select("id, event_type, event_date, notes, lot:lots(lot_code), room:rooms(name), is_locked")
       .eq("cycle_id", id)
-      .order("event_date", { ascending: true }),
+      .order("event_date", { ascending: false }),
     supabase.from("rooms").select("id, name").eq("is_active", true),
-    supabase.from("daily_closures").select("id, closure_date, events_count, events_hash, closed_by_profile:profiles!daily_closures_closed_by_fkey(full_name)").eq("cycle_id", id).order("closure_date", { ascending: false }),
+    supabase.from("daily_closures")
+      .select("id, closure_date, events_count, events_hash, closed_by_profile:profiles!daily_closures_closed_by_fkey(full_name)")
+      .eq("cycle_id", id)
+      .order("closure_date", { ascending: false }),
+    supabase.from("v_supply_stock").select("id, name, unit, stock_actual, last_unit_cost").eq("is_active", true).order("name"),
   ])
 
   if (!cycleRes.data) notFound()
@@ -64,6 +74,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const lots = (cycle.lots ?? []) as any[]
   const rooms = (roomsRes.data ?? []) as any[]
   const closures = (closuresRes.data ?? []) as any[]
+  const products = (productsRes.data ?? []) as any[]
 
   const totalNet = lots.reduce((acc: number, l: any) => acc + (l.net_grams ?? 0), 0)
   const totalGross = lots.reduce((acc: number, l: any) => acc + (l.gross_grams ?? 0), 0)
@@ -95,10 +106,18 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
     return acc
   }, {})
 
+  const lotsForPanel = lots.map((l: any) => ({
+    id: l.id,
+    lot_code: l.lot_code,
+    status: l.status,
+    genetic_name: l.genetic?.name ?? null,
+    room_name: l.room?.name ?? null,
+  }))
+
   return (
     <div className="space-y-5">
       <BackButton label="Volver a ciclos" />
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-2">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-xl font-bold text-[#1a2e1a]">{cycle.name}</h1>
@@ -110,11 +129,19 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
             {formatDate(cycle.start_date)}{cycle.end_date && ` -> ${formatDate(cycle.end_date)}`}{durationDays && ` - ${durationDays} dias totales`}
           </p>
         </div>
-        <div className="flex gap-2">
-          {cycle.status === "activo" && <CloseCycleButton cycleId={id} cycleName={cycle.name} />}
-          <DailyClosureModal cycleId={id} closures={closures} />
-          <NewEventModal cycleId={id} lots={lots.map((l: any) => ({ id: l.id, lot_code: l.lot_code }))} rooms={rooms} />
-          <NewExpenseModal cycleId={id} />
+        <div className="flex gap-2 flex-wrap">
+          <Link href={`/ciclos/${id}/timeline`} className="inline-flex items-center gap-1.5 text-xs bg-white border border-[#ddecd8] hover:border-[#4d8a3d] text-[#2d5a27] font-medium rounded-lg px-3 py-2 transition-colors">
+            Ver linea de tiempo
+          </Link>
+          {canEdit && <PeriodPdfButton cycleId={id} />}
+          {cycle.status === "activo" && ["admin","biologo","administrativo"].includes(role) && (
+            <DailyClosureModal cycleId={id} closures={closures} />
+          )}
+          {cycle.status === "activo" && isAdmin && <CloseCycleButton cycleId={id} cycleName={cycle.name} />}
+          {isAdmin && <NewExpenseModal cycleId={id} />}
+          {["admin","biologo"].includes(role) && (
+            <NewEventModal cycleId={id} lots={lotsForPanel} rooms={rooms} />
+          )}
         </div>
       </div>
 
@@ -140,6 +167,49 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           <p className="text-[10px] text-[#9ab894] uppercase tracking-wide mt-1">Costo por gramo</p>
         </div>
       </div>
+
+      {cycle.status === "activo" && canEdit && (
+        <QuickActionsPanel
+          cycleId={id}
+          lots={lotsForPanel}
+          products={products}
+          rooms={rooms}
+        />
+      )}
+
+      <Card padding={false}>
+        <div className="px-5 pt-5 pb-4"><SectionHeader title="Lotes del ciclo" /></div>
+        <div className="divide-y divide-[#f5faf3]">
+          {lots.map((lot: any) => {
+            const daysInCycle = lot.seedling_date
+              ? Math.round((Date.now() - new Date(lot.seedling_date).getTime()) / (1000*60*60*24))
+              : null
+            return (
+              <Link key={lot.id} href={`/trazabilidad/${lot.id}`}>
+                <div className="flex items-center justify-between px-5 py-3 hover:bg-[#f5faf3] transition-colors">
+                  <div>
+                    <p className="font-mono font-medium text-[#1a2e1a]">{lot.lot_code}</p>
+                    <p className="text-xs text-[#6b8c65]">
+                      {lot.genetic?.name ?? "Sin genetica"}
+                      {lot.room?.name && ` - ${lot.room.name}`}
+                      {daysInCycle && ` - ${daysInCycle} dias`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-[#1a2e1a]">{lot.net_grams ? formatGrams(lot.net_grams) : "-"}</p>
+                      <p className="text-xs text-[#9ab894]">netos</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${lot.status === "finalizado" ? "bg-[#edf7e8] text-[#2d6a1f] border-[#b8daa8]" : "bg-[#fdf8ec] text-[#8a6010] border-[#e8d48a]"}`}>
+                      {lot.status}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
@@ -170,40 +240,42 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
         )}
       </div>
 
-      <Card padding={false}>
-        <div className="px-5 pt-5 pb-4 flex items-center justify-between">
-          <div>
-            <SectionHeader title="Gastos del ciclo" />
-            {totalExpenses > 0 && <p className="text-xs text-[#6b8c65] mt-1">Total: <span className="font-bold text-[#1a2e1a]">${totalExpenses.toLocaleString("es-AR")}</span></p>}
-          </div>
-        </div>
-        {expenses.length === 0 ? (
-          <div className="px-5 pb-5"><p className="text-sm text-[#9ab894]">Sin gastos registrados</p></div>
-        ) : (
-          <div>
-            {Object.entries(expensesByCategory).map(([cat, total]) => (
-              <div key={cat} className="px-5 py-2 border-b border-[#f5faf3] flex justify-between items-center">
-                <span className="text-sm text-[#6b8c65]">{CATEGORY_LABELS[cat] ?? cat}</span>
-                <span className="text-sm font-semibold text-[#1a2e1a]">${(total as number).toLocaleString("es-AR")}</span>
-              </div>
-            ))}
-            <div className="divide-y divide-[#f5faf3]">
-              {expenses.map((e: any, i: number) => (
-                <div key={i} className="px-5 py-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-[#1a2e1a]">{e.expense?.description}</p>
-                      <p className="text-xs text-[#9ab894]">{CATEGORY_LABELS[e.expense?.category] ?? e.expense?.category} - {formatDate(e.expense?.purchase_date)}{e.expense?.supplier ? ` - ${e.expense.supplier}` : ""}</p>
-                      {e.expense?.useful_cycles > 1 && <p className="text-xs text-[#9ab894]">Total: ${parseFloat(e.expense.total_amount).toLocaleString("es-AR")} / {e.expense.useful_cycles} ciclos</p>}
-                    </div>
-                    <span className="text-sm font-bold text-[#1a2e1a]">${parseFloat(e.allocated_amount).toLocaleString("es-AR")}</span>
-                  </div>
-                </div>
-              ))}
+      {isAdmin && (
+        <Card padding={false}>
+          <div className="px-5 pt-5 pb-4 flex items-center justify-between">
+            <div>
+              <SectionHeader title="Gastos del ciclo" />
+              {totalExpenses > 0 && <p className="text-xs text-[#6b8c65] mt-1">Total: <span className="font-bold text-[#1a2e1a]">${totalExpenses.toLocaleString("es-AR")}</span></p>}
             </div>
           </div>
-        )}
-      </Card>
+          {expenses.length === 0 ? (
+            <div className="px-5 pb-5"><p className="text-sm text-[#9ab894]">Sin gastos registrados</p></div>
+          ) : (
+            <div>
+              {Object.entries(expensesByCategory).map(([cat, total]) => (
+                <div key={cat} className="px-5 py-2 border-b border-[#f5faf3] flex justify-between items-center">
+                  <span className="text-sm text-[#6b8c65]">{CATEGORY_LABELS[cat] ?? cat}</span>
+                  <span className="text-sm font-semibold text-[#1a2e1a]">${(total as number).toLocaleString("es-AR")}</span>
+                </div>
+              ))}
+              <div className="divide-y divide-[#f5faf3]">
+                {expenses.map((e: any, i: number) => (
+                  <div key={i} className="px-5 py-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-[#1a2e1a]">{e.expense?.description}</p>
+                        <p className="text-xs text-[#9ab894]">{CATEGORY_LABELS[e.expense?.category] ?? e.expense?.category} - {formatDate(e.expense?.purchase_date)}{e.expense?.supplier ? ` - ${e.expense.supplier}` : ""}</p>
+                        {e.expense?.useful_cycles > 1 && <p className="text-xs text-[#9ab894]">Total: ${parseFloat(e.expense.total_amount).toLocaleString("es-AR")} / {e.expense.useful_cycles} ciclos</p>}
+                      </div>
+                      <span className="text-sm font-bold text-[#1a2e1a]">${parseFloat(e.allocated_amount).toLocaleString("es-AR")}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {events.length > 0 && (
         <Card padding={false}>
@@ -212,7 +284,10 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
             {events.map((ev: any) => (
               <div key={ev.id} className="px-5 py-3 flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#1a2e1a]">{EVENT_LABELS[ev.event_type] ?? ev.event_type}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-[#1a2e1a]">{EVENT_LABELS[ev.event_type] ?? ev.event_type}</p>
+                    {ev.is_locked && <span className="text-xs bg-slate-100 text-slate-500 rounded px-1.5 py-0.5">Cerrado</span>}
+                  </div>
                   {ev.notes && <p className="text-xs text-[#6b8c65] mt-0.5">{ev.notes}</p>}
                   {(ev.lot || ev.room) && (
                     <div className="flex gap-1.5 mt-1">
@@ -227,31 +302,6 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           </div>
         </Card>
       )}
-
-      <Card padding={false}>
-        <div className="px-5 pt-5 pb-4"><SectionHeader title="Lotes del ciclo" /></div>
-        <div className="divide-y divide-[#f5faf3]">
-          {lots.map((lot: any) => (
-            <Link key={lot.id} href={`/trazabilidad/${lot.id}`}>
-              <div className="flex items-center justify-between px-5 py-3 hover:bg-[#f5faf3] transition-colors">
-                <div>
-                  <p className="font-mono font-medium text-[#1a2e1a]">{lot.lot_code}</p>
-                  <p className="text-xs text-[#6b8c65]">{lot.genetic?.name ?? "Sin genetica"}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-[#1a2e1a]">{lot.net_grams ? formatGrams(lot.net_grams) : "-"}</p>
-                    <p className="text-xs text-[#9ab894]">netos</p>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${lot.status === "finalizado" ? "bg-[#edf7e8] text-[#2d6a1f] border-[#b8daa8]" : "bg-[#fdf8ec] text-[#8a6010] border-[#e8d48a]"}`}>
-                    {lot.status}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </Card>
 
       {cycle.notes && (
         <Card>
