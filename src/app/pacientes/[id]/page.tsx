@@ -11,6 +11,7 @@ import DocumentStatusAction from "./DocumentStatusAction"
 import QRDisplay from "@/components/qr/QRDisplay"
 import DeletePatientButton from "./DeletePatientButton"
 import ComprobanteButton from "./ComprobanteButton"
+import MedicalNotesEditor from "./MedicalNotesEditor"
 
 export default async function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -20,7 +21,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   const canReview = ["admin", "administrativo", "medico"].includes(profile?.role ?? "")
   const isAdmin = profile?.role === "admin"
-  const { data: patient } = await supabase.from("patients").select("*, treating_physician:profiles!patients_treating_physician_id_fkey(id, full_name), membership_plan:membership_plans(id, name, monthly_grams, monthly_amount)").eq("id", id).is("deleted_at", null).single()
+  const isMedico = profile?.role === "medico"
+  const { data: patient } = await supabase.from("patients").select("*, medical_notes, treating_physician:profiles!patients_treating_physician_id_fkey(id, full_name), membership_plan:membership_plans(id, name, monthly_grams, monthly_amount)").eq("id", id).is("deleted_at", null).single()
   if (!patient) notFound()
   const { data: documents } = await supabase.from("patient_documents").select("*, doc_type:patient_document_types(id, name, slug, is_mandatory, has_expiry, sort_order)").eq("patient_id", id).order("doc_type(sort_order)")
   const { data: signature } = await supabase
@@ -41,7 +43,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     <div className="space-y-5">
       <div>
         <BackButton label="Volver a pacientes" />
-        <PageHeader title={patient.full_name} description={`DNI ${patient.dni} · Alta: ${formatDate(patient.created_at)}`}
+        <PageHeader title={patient.full_name} description={`DNI ${patient.dni} Â· Alta: ${formatDate(patient.created_at)}`}
           actions={
             <div className="flex items-center gap-2">
               <QRDisplay entityId={id} entityType="patient" entityName={patient.full_name} currentToken={patient.qr_token} />
@@ -101,7 +103,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <div key={doc.id} className="flex items-center gap-3 px-5 py-3">
               <div className={`w-2 h-2 rounded-full shrink-0 ${doc.status === "aprobado" ? "bg-green-500" : doc.status === "pendiente_revision" ? "bg-amber-500" : doc.status === "pendiente_vinculacion" ? "bg-slate-300" : doc.status === "observado" ? "bg-orange-500" : "bg-red-500"}`} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-[#1a2e1a]">{doc.doc_type?.name}{doc.doc_type?.is_mandatory && <span className="text-xs text-slate-400 ml-1">· Obligatorio</span>}</p>
+                <p className="text-sm text-[#1a2e1a]">{doc.doc_type?.name}{doc.doc_type?.is_mandatory && <span className="text-xs text-slate-400 ml-1">Â· Obligatorio</span>}</p>
                 {doc.file_name && <p className="text-xs text-slate-400 truncate mt-0.5">{doc.file_name}</p>}
                 {doc.observations && <p className="text-xs text-orange-600 mt-0.5">Obs: {doc.observations}</p>}
                 {doc.reviewed_at && doc.status === "aprobado" && <p className="text-xs text-green-600 mt-0.5">Aprobado el {formatDate(doc.reviewed_at)}</p>}
@@ -120,9 +122,47 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       <Card padding={false}>
         <div className="px-5 pt-5 pb-4"><SectionHeader title="Historial de dispensas" actions={<Link href="/dispensas"><Button size="sm">Registrar dispensa</Button></Link>} /></div>
         {(!dispenses || dispenses.length === 0) ? <div className="text-center py-8 text-sm text-slate-400">Sin dispensas registradas</div> : (
-          <div className="overflow-x-auto"><table className="table-ong w-full"><thead><tr><th>Fecha</th><th>Producto</th><th>Lote</th><th>Cantidad</th><th>Registrado por</th></tr></thead><tbody>{dispenses.map((d: any) => (<tr key={d.id}><td>{formatDateTime(d.dispensed_at)}</td><td>{d.product_desc}</td><td className="font-mono text-xs">{d.lot?.lot_code ?? "—"}</td><td className="font-medium tabular-nums">{formatGrams(d.grams)}</td><td className="text-slate-500">{d.performed_by_profile?.full_name ?? "—"}</td></tr>))}</tbody></table></div>
+          <div className="overflow-x-auto"><table className="table-ong w-full"><thead><tr><th>Fecha</th><th>Producto</th><th>Lote</th><th>Cantidad</th><th>Registrado por</th></tr></thead><tbody>{dispenses.map((d: any) => (<tr key={d.id}><td>{formatDateTime(d.dispensed_at)}</td><td>{d.product_desc}</td><td className="font-mono text-xs">{d.lot?.lot_code ?? "â€”"}</td><td className="font-medium tabular-nums">{formatGrams(d.grams)}</td><td className="text-slate-500">{d.performed_by_profile?.full_name ?? "â€”"}</td></tr>))}</tbody></table></div>
         )}
       </Card>
+
+      {/* Legajo medico - visible para medico y admin */}
+      {(isMedico || isAdmin) && (
+        <Card padding={false}>
+          <div className="px-5 pt-5 pb-4">
+            <SectionHeader title="Legajo medico" />
+          </div>
+          <div className="px-5 pb-5 space-y-5">
+            <div>
+              <p className="text-xs font-medium text-slate-600 mb-2">Notas clinicas</p>
+              <MedicalNotesEditor patientId={id} initialNotes={(patient as any).medical_notes ?? null} />
+            </div>
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-xs font-medium text-slate-600 mb-2">Documentos medicos</p>
+              <div className="space-y-2">
+                {(documents ?? [])
+                  .filter((d: any) => ["orden_medica","reprocann","consentimiento"].includes(d.doc_type?.slug))
+                  .map((doc: any) => (
+                    <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${doc.status === "aprobado" ? "bg-green-500" : doc.status === "pendiente_revision" ? "bg-amber-500" : "bg-red-500"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900">{doc.doc_type?.name}</p>
+                        {doc.file_name && <p className="text-xs text-slate-400 truncate">{doc.file_name}</p>}
+                        {doc.expires_at && <p className="text-xs text-slate-500">Vence: {formatDate(doc.expires_at)}</p>}
+                        {doc.observations && <p className="text-xs text-orange-600">Obs: {doc.observations}</p>}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <ViewFileButton filePath={doc.file_path} bucketName="patient-documents" />
+                        <UploadDocumentButton documentId={doc.id} patientId={id} docTypeSlug={doc.doc_type?.slug} docTypeName={doc.doc_type?.name} hasExpiry={doc.doc_type?.has_expiry} currentStatus={doc.status} currentFilePath={doc.file_path} />
+                        {canReview && <DocumentStatusAction documentId={doc.id} currentStatus={doc.status} table="patient_documents" isReprocann={doc.doc_type?.slug === "reprocann"} />}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Firma electronica */}
       <Card>
