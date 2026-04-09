@@ -1,12 +1,12 @@
-﻿import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { createClient } from "@supabase/supabase-js"
+import { NextResponse } from "next/server"
 
-export const runtime = 'edge'
+export const runtime = "edge"
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization')
+  const authHeader = request.headers.get("authorization")
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   const supabase = createClient(
@@ -18,18 +18,26 @@ export async function GET(request: Request) {
   const year = now.getFullYear()
   const month = now.getMonth() + 1
 
-  const { data, error } = await supabase
-    .rpc('generate_monthly_periods', { p_year: year, p_month: month })
+  const { data: periodsData, error: periodsError } = await supabase
+    .rpc("generate_monthly_periods", { p_year: year, p_month: month })
 
-  if (error) {
-    console.error('Error generating periods:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (periodsError) {
+    console.error("Error generating periods:", periodsError)
+    return NextResponse.json({ error: periodsError.message }, { status: 500 })
+  }
+
+  const { error: expensesError } = await supabase
+    .rpc("create_and_distribute_recurring_expenses", { p_month: month, p_year: year })
+
+  if (expensesError) {
+    console.error("Error distributing recurring expenses:", expensesError)
   }
 
   return NextResponse.json({
     ok: true,
     year,
     month,
-    result: data
+    periods: periodsData,
+    recurring_expenses_distributed: !expensesError,
   })
 }

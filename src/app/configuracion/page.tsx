@@ -3,12 +3,13 @@ import { redirect } from "next/navigation"
 import { PageHeader, Card, Table, EmptyState, SectionHeader } from "@/components/ui"
 import { BackButton } from "@/components/ui/BackButton"
 import { formatARS, formatGrams } from "@/lib/utils"
-import { CreditCard, FlaskConical, DoorOpen } from "lucide-react"
+import { CreditCard, FlaskConical, DoorOpen, RefreshCw } from "lucide-react"
 import NewPlanModal from "./NewPlanModal"
 import EditPlanButton from "./EditPlanButton"
 import NewGeneticModal from "./NewGeneticModal"
 import NewRoomModal from "./NewRoomModal"
 import { EditGeneticButton, EditRoomButton } from "./EditGeneticRoomButtons"
+import RecurringExpensesSection from "./RecurringExpensesSection"
 
 export default async function ConfiguracionPage() {
   const supabase = await createClient()
@@ -56,8 +57,8 @@ export default async function ConfiguracionPage() {
                 return (
                   <tr key={plan.id}>
                     <td className="font-medium text-slate-900">{plan.name}</td>
-                    <td className="text-slate-500">{plan.description ?? "—"}</td>
-                    <td className="tabular-nums">{plan.monthly_grams ? formatGrams(plan.monthly_grams) : "—"}</td>
+                    <td className="text-slate-500">{plan.description ?? "-"}</td>
+                    <td className="tabular-nums">{plan.monthly_grams ? formatGrams(plan.monthly_grams) : "-"}</td>
                     <td className="tabular-nums font-medium">{formatARS(plan.monthly_amount)}</td>
                     <td>
                       {count > 0
@@ -94,7 +95,7 @@ export default async function ConfiguracionPage() {
               {genetics.map((g: any) => (
                 <tr key={g.id}>
                   <td className="font-medium text-slate-900">{g.name}</td>
-                  <td className="text-slate-500">{g.description ?? "—"}</td>
+                  <td className="text-slate-500">{g.description ?? "-"}</td>
                   <td>
                     <span className={`text-xs rounded px-1.5 py-0.5 border ${g.is_active ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-500 border-slate-200"}`}>
                       {g.is_active ? "Activa" : "Inactiva"}
@@ -123,7 +124,7 @@ export default async function ConfiguracionPage() {
               {rooms.map((r: any) => (
                 <tr key={r.id}>
                   <td className="font-medium text-slate-900">{r.name}</td>
-                  <td className="text-slate-500">{r.description ?? "—"}</td>
+                  <td className="text-slate-500">{r.description ?? "-"}</td>
                   <td>
                     <span className={`text-xs rounded px-1.5 py-0.5 border ${r.is_active ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-500 border-slate-200"}`}>
                       {r.is_active ? "Activa" : "Inactiva"}
@@ -135,6 +136,16 @@ export default async function ConfiguracionPage() {
             </tbody>
           </Table>
         )}
+      </Card>
+
+      <Card padding={false}>
+        <div className="px-5 pt-5 pb-4">
+          <SectionHeader title="Gastos recurrentes mensuales" />
+          <p className="text-xs text-slate-500 mt-1">Se distribuyen automaticamente el 1 de cada mes entre los ciclos activos por m2 de sala.</p>
+        </div>
+        <div className="px-5 pb-5">
+          <RecurringExpensesSection />
+        </div>
       </Card>
     </div>
   )
