@@ -105,7 +105,6 @@ export function Sidebar({ role, userName }: { role: UserRole; userName: string }
           <p className="text-[11px] text-[#4d7a46] capitalize">{role}</p>
         </div>
         <PushNotifications />
-        <PushNotifications />
         <button onClick={handleLogout} className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left text-[12.5px] font-medium text-[#7a9e74] hover:bg-red-950/40 hover:text-red-400 transition-colors">
           <LogOut className="w-4 h-4 shrink-0" /><span>Cerrar sesion</span>
         </button>
