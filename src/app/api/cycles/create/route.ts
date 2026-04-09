@@ -11,12 +11,13 @@ export async function POST(request: Request) {
 
   const service = await createServiceClient()
 
-  // Generar nombre automatico con numero correlativo
   const now = new Date()
-  const { count } = await service.from("production_cycles").select("*", { count: "exact", head: true })
-  const cycleNumber = (count ?? 0) + 1
-  const name = `Ciclo #${cycleNumber}`
   const start_date = now.toISOString().split("T")[0]
+
+  // Usar secuencia para numero correlativo
+  const { data: cycleNumber } = await service.rpc("nextval_cycle_number")
+  const year = now.getFullYear()
+  const name = `Ciclo ${String(cycleNumber).padStart(2, "0")}/${year}`
 
   const { data, error } = await service
     .from("production_cycles")
