@@ -69,7 +69,7 @@ export default async function InsumosPage() {
           <div className="flex flex-wrap gap-2">
             {bajoStock.map(s => (
               <span key={s.id} className="text-xs bg-red-100 text-red-700 border border-red-200 rounded-full px-2.5 py-1">
-                {s.name} â€” {s.stock_actual} {s.unit}
+                {s.name} Ã¢â‚¬â€ {s.stock_actual} {s.unit}
               </span>
             ))}
           </div>
@@ -105,13 +105,13 @@ export default async function InsumosPage() {
             <tbody>
               {stock.map(s => (
                 <tr key={s.id}>
-                  <td className="font-medium text-slate-900">{s.name}</td>
+                  <td className="font-medium text-slate-900"><a href={`/insumos/${s.id}`} className="hover:text-[#2d5a27] hover:underline">{s.name}</a></td>
                   <td><span className="text-xs bg-slate-100 text-slate-600 rounded px-2 py-0.5">{CATEGORY_LABELS[s.category] ?? s.category}</span></td>
                   <td className={`font-bold tabular-nums ${s.stock_actual <= s.stock_alert_threshold && s.stock_alert_threshold > 0 ? "text-red-600" : "text-slate-900"}`}>
                     {s.stock_actual} {s.unit}
                   </td>
                   <td className="text-slate-400 tabular-nums text-sm">
-                    {s.stock_alert_threshold > 0 ? `min. ${s.stock_alert_threshold} ${s.unit}` : "â€”"}
+                    {s.stock_alert_threshold > 0 ? `min. ${s.stock_alert_threshold} ${s.unit}` : "Ã¢â‚¬â€"}
                   </td>
                 </tr>
               ))}
