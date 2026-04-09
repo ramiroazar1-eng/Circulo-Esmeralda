@@ -87,5 +87,26 @@ export async function POST(request: Request) {
     performed_at: new Date().toISOString()
   }).then(() => {})
 
+  // Enviar notificacion push al staff
+  const statusLabels: Record<string, string> = {
+    nuevo: "Nuevo pedido",
+    pendiente_aprobacion: "Pendiente de aprobacion",
+    aprobado: "Pedido aprobado",
+    en_preparacion: "En preparacion",
+    empaquetado: "Listo para entregar",
+    entregado: "Entregado",
+    cancelado: "Cancelado"
+  }
+  const patientName = order.patient_id ? `Pedido de paciente` : "Pedido"
+  await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.circuloesmeralda.com.ar"}/api/push/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: statusLabels[status] ?? status,
+      body: `Estado actualizado a: ${statusLabels[status] ?? status}`,
+      order_id: order_id
+    })
+  }).catch(() => {})
+
   return NextResponse.json({ success: true })
 }

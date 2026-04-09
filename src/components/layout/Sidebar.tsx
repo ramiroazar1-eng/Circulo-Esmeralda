@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import type { UserRole } from "@/types"
 import { LayoutDashboard, Users, Building2, FlaskConical, Pill, CreditCard, BookOpen, Shield, Settings, LogOut, UserCog, ChevronRight, FileDown, QrCode, Package, Menu, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { PushNotifications } from "./PushNotifications"
 import { useRouter } from "next/navigation"
 
 const NAV_ITEMS = [
@@ -103,6 +104,8 @@ export function Sidebar({ role, userName }: { role: UserRole; userName: string }
           <p className="text-[12px] font-semibold text-[#c8e8c0] truncate">{userName}</p>
           <p className="text-[11px] text-[#4d7a46] capitalize">{role}</p>
         </div>
+        <PushNotifications />
+        <PushNotifications />
         <button onClick={handleLogout} className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left text-[12.5px] font-medium text-[#7a9e74] hover:bg-red-950/40 hover:text-red-400 transition-colors">
           <LogOut className="w-4 h-4 shrink-0" /><span>Cerrar sesion</span>
         </button>
