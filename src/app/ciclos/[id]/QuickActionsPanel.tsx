@@ -1,7 +1,7 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarPlus, FlaskConical, ChevronDown, ChevronUp } from "lucide-react"
+import { CalendarPlus, FlaskConical, ChevronDown, ChevronUp, Zap } from "lucide-react"
 import { Button, Alert } from "@/components/ui"
 
 const EVENT_TYPES = [
@@ -20,15 +20,17 @@ const EVENT_TYPES = [
 interface Lot { id: string; lot_code: string; status: string; genetic_name: string | null; room_name: string | null }
 interface Product { id: string; name: string; unit: string; stock_actual: number; last_unit_cost: number | null }
 interface Room { id: string; name: string }
+interface Template { id: string; name: string; event_type: string; notes: string | null }
 
 interface Props {
   cycleId: string
   lots: Lot[]
   products: Product[]
   rooms: Room[]
+  canManageTemplates?: boolean
 }
 
-export default function QuickActionsPanel({ cycleId, lots, products, rooms }: Props) {
+export default function QuickActionsPanel({ cycleId, lots, products, rooms, canManageTemplates = false }: Props) {
   const [activePanel, setActivePanel] = useState<"evento" | "insumo" | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,12 +38,22 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms }: Pr
   const [selectedProductId, setSelectedProductId] = useState("")
   const [quantity, setQuantity] = useState("")
   const [unitCost, setUnitCost] = useState("")
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [eventType, setEventType] = useState("riego")
+  const [notes, setNotes] = useState("")
+  const [showNewTemplate, setShowNewTemplate] = useState(false)
+  const [templateName, setTemplateName] = useState("")
   const router = useRouter()
 
-  function togglePanel(panel: "evento" | "insumo") {
-    setActivePanel(prev => prev === panel ? null : panel)
-    setError(null)
-    setSuccess(null)
+  useEffect(() => {
+    fetch("/api/cycles/event-templates")
+      .then(r => r.json())
+      .then(d => setTemplates(d.data ?? []))
+  }, [])
+
+  function applyTemplate(template: Template) {
+    setEventType(template.event_type)
+    setNotes(template.notes ?? "")
   }
 
   function handleProductChange(productId: string) {
@@ -52,6 +64,14 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms }: Pr
     } else {
       setUnitCost("")
     }
+  }
+
+  function togglePanel(panel: "evento" | "insumo") {
+    setActivePanel(prev => prev === panel ? null : panel)
+    setError(null)
+    setSuccess(null)
+    setNotes("")
+    setEventType("riego")
   }
 
   const totalCost = quantity && unitCost
@@ -68,11 +88,11 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms }: Pr
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cycle_id: cycleId,
-        event_type: form.get("event_type"),
+        event_type: eventType,
         event_date: form.get("event_date"),
         lot_id: form.get("lot_id") || null,
         room_id: form.get("room_id") || null,
-        notes: form.get("notes") || null,
+        notes: notes || null,
       })
     })
     const data = await res.json()
@@ -80,6 +100,18 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms }: Pr
     setSuccess("Evento registrado")
     setLoading(false)
     setTimeout(() => { setActivePanel(null); setSuccess(null); router.refresh() }, 1500)
+  }
+
+  async function handleSaveTemplate() {
+    if (!templateName.trim()) return
+    await fetch("/api/cycles/event-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: templateName, event_type: eventType, notes })
+    })
+    setTemplateName("")
+    setShowNewTemplate(false)
+    fetch("/api/cycles/event-templates").then(r => r.json()).then(d => setTemplates(d.data ?? []))
   }
 
   async function handleInsumoSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -163,10 +195,36 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms }: Pr
 
           {activePanel === "evento" && (
             <form onSubmit={handleEventSubmit} className="space-y-3">
+              {templates.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 mb-1.5 flex items-center gap-1">
+                    <Zap className="w-3 h-3" />Templates rapidos
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {templates.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => applyTemplate(t)}
+                        className="text-xs bg-[#f5faf3] hover:bg-[#edf7e8] text-[#2d5a27] border border-[#ddecd8] rounded-lg px-2.5 py-1.5 transition-colors"
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label-ong">Tipo *</label>
-                  <select name="event_type" required className="input-ong">
+                  <select
+                    name="event_type"
+                    required
+                    className="input-ong"
+                    value={eventType}
+                    onChange={e => setEventType(e.target.value)}
+                  >
                     {EVENT_TYPES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
                   </select>
                 </div>
@@ -197,8 +255,42 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms }: Pr
               </div>
               <div>
                 <label className="label-ong">Notas</label>
-                <textarea name="notes" rows={2} className="input-ong resize-none" placeholder="Descripcion del evento..." />
+                <textarea
+                  name="notes"
+                  rows={2}
+                  className="input-ong resize-none"
+                  placeholder="Descripcion del evento..."
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                />
               </div>
+
+              {canManageTemplates && (
+                <div>
+                  {!showNewTemplate ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowNewTemplate(true)}
+                      className="text-xs text-[#9ab894] hover:text-[#2d5a27] flex items-center gap-1"
+                    >
+                      <Zap className="w-3 h-3" />Guardar como template
+                    </button>
+                  ) : (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        className="input-ong flex-1 text-xs"
+                        placeholder="Nombre del template..."
+                        value={templateName}
+                        onChange={e => setTemplateName(e.target.value)}
+                      />
+                      <Button type="button" size="sm" onClick={handleSaveTemplate}>Guardar</Button>
+                      <Button type="button" size="sm" variant="secondary" onClick={() => setShowNewTemplate(false)}>X</Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="secondary" size="sm" onClick={() => setActivePanel(null)}>Cancelar</Button>
                 <Button type="submit" size="sm" loading={loading}>Guardar evento</Button>
@@ -220,7 +312,7 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms }: Pr
                   <option value="">Selecciona un producto...</option>
                   {products.map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.name} — stock: {p.stock_actual} {p.unit}
+                      {p.name} - stock: {p.stock_actual} {p.unit}
                     </option>
                   ))}
                 </select>

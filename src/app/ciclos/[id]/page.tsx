@@ -174,6 +174,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           lots={lotsForPanel}
           products={products}
           rooms={rooms}
+          canManageTemplates={["admin","biologo"].includes(role)}
         />
       )}
 
