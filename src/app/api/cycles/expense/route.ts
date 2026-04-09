@@ -14,6 +14,11 @@ export async function POST(request: Request) {
 
   const service = await createServiceClient()
 
+  // Verificar que el ciclo este activo
+  const { data: cycle } = await service.from("production_cycles").select("status").eq("id", cycle_id).single()
+  if (cycle?.status !== "activo")
+    return NextResponse.json({ error: "No se pueden agregar gastos a un ciclo cerrado" }, { status: 400 })
+
   // Crear el gasto
   const { data: expense, error: expenseError } = await service
     .from("cycle_expenses")

@@ -14,6 +14,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Faltan datos requeridos" }, { status: 400 })
 
   const service = await createServiceClient()
+
+  // Verificar que el ciclo este activo
+  const { data: cycle } = await service.from("production_cycles").select("status").eq("id", cycle_id).single()
+  if (cycle?.status !== "activo")
+    return NextResponse.json({ error: "No se pueden planificar eventos en un ciclo cerrado" }, { status: 400 })
+
   const { error } = await service.from("planned_events").insert({
     cycle_id,
     lot_id: lot_id || null,

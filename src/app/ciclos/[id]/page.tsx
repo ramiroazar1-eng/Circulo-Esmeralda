@@ -138,8 +138,8 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
             <DailyClosureModal cycleId={id} closures={closures} />
           )}
           {cycle.status === "activo" && isAdmin && <CloseCycleButton cycleId={id} cycleName={cycle.name} />}
-          {isAdmin && <NewExpenseModal cycleId={id} />}
-          {["admin","biologo"].includes(role) && (
+          {isAdmin && cycle.status === "activo" && <NewExpenseModal cycleId={id} />}
+          {["admin","biologo"].includes(role) && cycle.status === "activo" && (
             <NewEventModal cycleId={id} lots={lotsForPanel} rooms={rooms} />
           )}
         </div>
