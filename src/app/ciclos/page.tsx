@@ -21,7 +21,12 @@ export default async function CiclosPage() {
   return (
     <div className="space-y-5">
       <BackButton label="Volver al dashboard" />
-      <PageHeader title="Ciclos de produccion" description="Historial y metricas de cada ciclo productivo" actions={canEdit ? <NewCycleModal /> : undefined} />
+      <PageHeader title="Ciclos de produccion" description="Historial y metricas de cada ciclo productivo" actions={
+          <div className="flex gap-2">
+            <a href="/ciclos/comparativa" className="inline-flex items-center gap-1.5 text-xs bg-white border border-[#ddecd8] hover:border-[#4d8a3d] text-[#2d5a27] font-medium rounded-lg px-3 py-2 transition-colors">Comparativa</a>
+            {canEdit && <NewCycleModal />}
+          </div>
+        } />
       {cycleList.length === 0 ? (
         <Card><EmptyState title="Sin ciclos registrados" icon={FlaskConical} /></Card>
       ) : (
@@ -48,7 +53,7 @@ export default async function CiclosPage() {
                         </span>
                       </div>
                       <p className="text-xs text-[#9ab894]">
-                        {formatDate(cycle.start_date)}{cycle.end_date && ` → ${formatDate(cycle.end_date)}`}{durationDays && ` · ${durationDays} dias`}
+                        {formatDate(cycle.start_date)}{cycle.end_date && ` â†’ ${formatDate(cycle.end_date)}`}{durationDays && ` Â· ${durationDays} dias`}
                       </p>
                     </div>
                     <div className="text-right">
@@ -66,7 +71,7 @@ export default async function CiclosPage() {
                       <p className="text-[10px] text-[#9ab894] uppercase tracking-wide">Finalizados</p>
                     </div>
                     <div className="bg-[#f5faf3] rounded-lg p-3 text-center">
-                      <p className="text-lg font-black text-[#1a2e1a]">{durationDays ?? "—"}</p>
+                      <p className="text-lg font-black text-[#1a2e1a]">{durationDays ?? "â€”"}</p>
                       <p className="text-[10px] text-[#9ab894] uppercase tracking-wide">Dias</p>
                     </div>
                   </div>
