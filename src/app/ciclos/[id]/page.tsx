@@ -112,6 +112,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
     status: l.status,
     genetic_name: l.genetic?.name ?? null,
     room_name: l.room?.name ?? null,
+    room_id: l.room_id ?? null,
   }))
 
   return (

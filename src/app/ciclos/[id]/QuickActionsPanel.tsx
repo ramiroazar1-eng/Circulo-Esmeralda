@@ -17,7 +17,14 @@ const EVENT_TYPES = [
   { value: "otro",        label: "Otro" },
 ]
 
-interface Lot { id: string; lot_code: string; status: string; genetic_name: string | null; room_name: string | null }
+interface Lot {
+  id: string
+  lot_code: string
+  status: string
+  genetic_name: string | null
+  room_name: string | null
+  room_id: string | null
+}
 interface Product { id: string; name: string; unit: string; stock_actual: number; last_unit_cost: number | null }
 interface Room { id: string; name: string }
 interface Template { id: string; name: string; event_type: string; notes: string | null }
@@ -43,6 +50,10 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
   const [notes, setNotes] = useState("")
   const [showNewTemplate, setShowNewTemplate] = useState(false)
   const [templateName, setTemplateName] = useState("")
+  const [selectedEventLotId, setSelectedEventLotId] = useState("")
+  const [selectedEventRoomId, setSelectedEventRoomId] = useState("")
+  const [selectedInsumoLotId, setSelectedInsumoLotId] = useState("")
+  const [selectedInsumoRoomId, setSelectedInsumoRoomId] = useState("")
   const router = useRouter()
 
   useEffect(() => {
@@ -56,22 +67,29 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
     setNotes(template.notes ?? "")
   }
 
+  function handleEventLotChange(lotId: string) {
+    setSelectedEventLotId(lotId)
+    const lot = lots.find(l => l.id === lotId)
+    setSelectedEventRoomId(lot?.room_id ?? "")
+  }
+
+  function handleInsumoLotChange(lotId: string) {
+    setSelectedInsumoLotId(lotId)
+    const lot = lots.find(l => l.id === lotId)
+    setSelectedInsumoRoomId(lot?.room_id ?? "")
+  }
+
   function handleProductChange(productId: string) {
     setSelectedProductId(productId)
     const product = products.find(p => p.id === productId)
-    if (product?.last_unit_cost) {
-      setUnitCost(product.last_unit_cost.toString())
-    } else {
-      setUnitCost("")
-    }
+    setUnitCost(product?.last_unit_cost ? product.last_unit_cost.toString() : "")
   }
 
   function togglePanel(panel: "evento" | "insumo") {
     setActivePanel(prev => prev === panel ? null : panel)
-    setError(null)
-    setSuccess(null)
-    setNotes("")
-    setEventType("riego")
+    setError(null); setSuccess(null); setNotes(""); setEventType("riego")
+    setSelectedEventLotId(""); setSelectedEventRoomId("")
+    setSelectedInsumoLotId(""); setSelectedInsumoRoomId("")
   }
 
   const totalCost = quantity && unitCost
@@ -80,8 +98,7 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
 
   async function handleEventSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     const form = new FormData(e.currentTarget)
     const res = await fetch("/api/cycles/event", {
       method: "POST",
@@ -90,8 +107,8 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
         cycle_id: cycleId,
         event_type: eventType,
         event_date: form.get("event_date"),
-        lot_id: form.get("lot_id") || null,
-        room_id: form.get("room_id") || null,
+        lot_id: selectedEventLotId || null,
+        room_id: selectedEventRoomId || null,
         notes: notes || null,
       })
     })
@@ -109,15 +126,13 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: templateName, event_type: eventType, notes })
     })
-    setTemplateName("")
-    setShowNewTemplate(false)
+    setTemplateName(""); setShowNewTemplate(false)
     fetch("/api/cycles/event-templates").then(r => r.json()).then(d => setTemplates(d.data ?? []))
   }
 
   async function handleInsumoSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     const form = new FormData(e.currentTarget)
     const qty = parseFloat(quantity)
     const uc = parseFloat(unitCost) || null
@@ -131,8 +146,8 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
         unit_cost: uc,
         total_cost: uc ? qty * uc : null,
         cycle_id: cycleId,
-        lot_id: form.get("lot_id") || null,
-        room_id: form.get("room_id") || null,
+        lot_id: selectedInsumoLotId || null,
+        room_id: selectedInsumoRoomId || null,
         notes: form.get("notes") || null,
         movement_date: form.get("movement_date"),
       })
@@ -141,9 +156,7 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
     if (!res.ok) { setError(data.error); setLoading(false); return }
     setSuccess("Consumo registrado")
     setLoading(false)
-    setSelectedProductId("")
-    setQuantity("")
-    setUnitCost("")
+    setSelectedProductId(""); setQuantity(""); setUnitCost("")
     setTimeout(() => { setActivePanel(null); setSuccess(null); router.refresh() }, 1500)
   }
 
@@ -155,10 +168,8 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
       </div>
 
       <div className="grid grid-cols-2 divide-x divide-[#eef5ea]">
-        <button
-          onClick={() => togglePanel("evento")}
-          className={`flex items-center justify-between px-5 py-4 transition-colors ${activePanel === "evento" ? "bg-[#edf7e8]" : "hover:bg-[#f5faf3]"}`}
-        >
+        <button onClick={() => togglePanel("evento")}
+          className={`flex items-center justify-between px-5 py-4 transition-colors ${activePanel === "evento" ? "bg-[#edf7e8]" : "hover:bg-[#f5faf3]"}`}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-[#2d5a27] flex items-center justify-center shrink-0">
               <CalendarPlus className="w-4 h-4 text-white" />
@@ -171,10 +182,8 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
           {activePanel === "evento" ? <ChevronUp className="w-4 h-4 text-[#9ab894]" /> : <ChevronDown className="w-4 h-4 text-[#9ab894]" />}
         </button>
 
-        <button
-          onClick={() => togglePanel("insumo")}
-          className={`flex items-center justify-between px-5 py-4 transition-colors ${activePanel === "insumo" ? "bg-[#edf7e8]" : "hover:bg-[#f5faf3]"}`}
-        >
+        <button onClick={() => togglePanel("insumo")}
+          className={`flex items-center justify-between px-5 py-4 transition-colors ${activePanel === "insumo" ? "bg-[#edf7e8]" : "hover:bg-[#f5faf3]"}`}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-[#4d8a3d] flex items-center justify-center shrink-0">
               <FlaskConical className="w-4 h-4 text-white" />
@@ -202,29 +211,18 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {templates.map(t => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => applyTemplate(t)}
-                        className="text-xs bg-[#f5faf3] hover:bg-[#edf7e8] text-[#2d5a27] border border-[#ddecd8] rounded-lg px-2.5 py-1.5 transition-colors"
-                      >
+                      <button key={t.id} type="button" onClick={() => applyTemplate(t)}
+                        className="text-xs bg-[#f5faf3] hover:bg-[#edf7e8] text-[#2d5a27] border border-[#ddecd8] rounded-lg px-2.5 py-1.5 transition-colors">
                         {t.name}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label-ong">Tipo *</label>
-                  <select
-                    name="event_type"
-                    required
-                    className="input-ong"
-                    value={eventType}
-                    onChange={e => setEventType(e.target.value)}
-                  >
+                  <select required className="input-ong" value={eventType} onChange={e => setEventType(e.target.value)}>
                     {EVENT_TYPES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
                   </select>
                 </div>
@@ -236,7 +234,7 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label-ong">Lote</label>
-                  <select name="lot_id" className="input-ong">
+                  <select className="input-ong" value={selectedEventLotId} onChange={e => handleEventLotChange(e.target.value)}>
                     <option value="">Todo el ciclo</option>
                     {lots.map(l => (
                       <option key={l.id} value={l.id}>
@@ -246,8 +244,10 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
                   </select>
                 </div>
                 <div>
-                  <label className="label-ong">Sala</label>
-                  <select name="room_id" className="input-ong">
+                  <label className="label-ong">
+                    Sala {selectedEventRoomId && <span className="text-[#9ab894] ml-1 font-normal">(autoasignada)</span>}
+                  </label>
+                  <select className="input-ong" value={selectedEventRoomId} onChange={e => setSelectedEventRoomId(e.target.value)}>
                     <option value="">Sin especificar</option>
                     {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
@@ -255,42 +255,25 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
               </div>
               <div>
                 <label className="label-ong">Notas</label>
-                <textarea
-                  name="notes"
-                  rows={2}
-                  className="input-ong resize-none"
-                  placeholder="Descripcion del evento..."
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                />
+                <textarea rows={2} className="input-ong resize-none" value={notes} onChange={e => setNotes(e.target.value)} />
               </div>
-
               {canManageTemplates && (
                 <div>
                   {!showNewTemplate ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowNewTemplate(true)}
-                      className="text-xs text-[#9ab894] hover:text-[#2d5a27] flex items-center gap-1"
-                    >
+                    <button type="button" onClick={() => setShowNewTemplate(true)}
+                      className="text-xs text-[#9ab894] hover:text-[#2d5a27] flex items-center gap-1">
                       <Zap className="w-3 h-3" />Guardar como template
                     </button>
                   ) : (
                     <div className="flex gap-2 items-center">
-                      <input
-                        type="text"
-                        className="input-ong flex-1 text-xs"
-                        placeholder="Nombre del template..."
-                        value={templateName}
-                        onChange={e => setTemplateName(e.target.value)}
-                      />
+                      <input type="text" className="input-ong flex-1 text-xs" placeholder="Nombre del template..."
+                        value={templateName} onChange={e => setTemplateName(e.target.value)} />
                       <Button type="button" size="sm" onClick={handleSaveTemplate}>Guardar</Button>
                       <Button type="button" size="sm" variant="secondary" onClick={() => setShowNewTemplate(false)}>X</Button>
                     </div>
                   )}
                 </div>
               )}
-
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="secondary" size="sm" onClick={() => setActivePanel(null)}>Cancelar</Button>
                 <Button type="submit" size="sm" loading={loading}>Guardar evento</Button>
@@ -302,32 +285,25 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
             <form onSubmit={handleInsumoSubmit} className="space-y-3">
               <div>
                 <label className="label-ong">Producto *</label>
-                <select
-                  name="supply_product_id"
-                  required
-                  className="input-ong"
-                  value={selectedProductId}
-                  onChange={e => handleProductChange(e.target.value)}
-                >
+                <select required className="input-ong" value={selectedProductId} onChange={e => handleProductChange(e.target.value)}>
                   <option value="">Selecciona un producto...</option>
                   {products.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} - stock: {p.stock_actual} {p.unit}
-                    </option>
+                    <option key={p.id} value={p.id}>{p.name} — stock: {p.stock_actual} {p.unit}</option>
                   ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label-ong">Cantidad *</label>
-                  <input type="number" required min="0.01" step="0.01" className="input-ong" value={quantity} onChange={e => setQuantity(e.target.value)} />
+                  <input type="number" required min="0.01" step="0.01" className="input-ong"
+                    value={quantity} onChange={e => setQuantity(e.target.value)} />
                 </div>
                 <div>
                   <label className="label-ong">
-                    Costo unitario
-                    {unitCost && <span className="text-[#9ab894] ml-1">(ultimo precio)</span>}
+                    Costo unitario {unitCost && <span className="text-[#9ab894] ml-1 font-normal">(ultimo precio)</span>}
                   </label>
-                  <input type="number" min="0" step="0.01" className="input-ong" placeholder="$0.00" value={unitCost} onChange={e => setUnitCost(e.target.value)} />
+                  <input type="number" min="0" step="0.01" className="input-ong" placeholder="$0.00"
+                    value={unitCost} onChange={e => setUnitCost(e.target.value)} />
                 </div>
               </div>
               {totalCost && (
@@ -339,18 +315,16 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label-ong">Lote</label>
-                  <select name="lot_id" className="input-ong">
+                  <select className="input-ong" value={selectedInsumoLotId} onChange={e => handleInsumoLotChange(e.target.value)}>
                     <option value="">Sin asignar</option>
-                    {lots.map(l => (
-                      <option key={l.id} value={l.id}>
-                        {l.lot_code}{l.room_name ? ` (${l.room_name})` : ""}
-                      </option>
-                    ))}
+                    {lots.map(l => <option key={l.id} value={l.id}>{l.lot_code}{l.room_name ? ` (${l.room_name})` : ""}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="label-ong">Sala</label>
-                  <select name="room_id" className="input-ong">
+                  <label className="label-ong">
+                    Sala {selectedInsumoRoomId && <span className="text-[#9ab894] ml-1 font-normal">(autoasignada)</span>}
+                  </label>
+                  <select className="input-ong" value={selectedInsumoRoomId} onChange={e => setSelectedInsumoRoomId(e.target.value)}>
                     <option value="">Sin asignar</option>
                     {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
@@ -358,7 +332,8 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
               </div>
               <div>
                 <label className="label-ong">Fecha *</label>
-                <input name="movement_date" type="date" required className="input-ong" defaultValue={new Date().toISOString().split("T")[0]} />
+                <input name="movement_date" type="date" required className="input-ong"
+                  defaultValue={new Date().toISOString().split("T")[0]} />
               </div>
               <div>
                 <label className="label-ong">Notas</label>

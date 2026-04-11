@@ -10,7 +10,6 @@ import QRDisplay from "@/components/qr/QRDisplay"
 const TIMELINE_STEPS = [
   { key: "seedling_date",     label: "Plantines" },
   { key: "veg_date",          label: "Vegetativo" },
-  { key: "pruning_date",      label: "Poda" },
   { key: "flower_date",       label: "Floracion" },
   { key: "harvest_date",      label: "Cosecha" },
   { key: "drying_start_date", label: "Secado" },
