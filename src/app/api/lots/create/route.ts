@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
   const body = await request.json()
-  const { genetic_id, room_id, seedling_date, notes } = body
+  const { genetic_id, room_id, seedling_date, notes, plant_count } = body
 
   const service = await createServiceClient()
 
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const geneticName = (geneticRes as any).data?.name ?? null
   const roomName = (roomRes as any).data?.name ?? null
 
-  // Generar codigo con nuevo formato L-Año-Sala-Genetica-Nro
+  // Generar codigo con nuevo formato L-AÃ±o-Sala-Genetica-Nro
   const { data: lotCode } = await service.rpc("generate_lot_code", {
     p_year: new Date().getFullYear(),
     p_room_name: roomName,
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     start_date: seedling_date || null,
     status: "plantines",
     notes: notes || null,
+    plant_count: plant_count || null,
     created_by: user.id,
     cycle_id: activeCycle.id,
   }).select().single()

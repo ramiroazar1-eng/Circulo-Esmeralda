@@ -19,6 +19,7 @@ export default function NewLotModal({ genetics, rooms }: Props) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setLoading(true); setError(null)
     const form = new FormData(e.currentTarget)
+    const plantCount = form.get("plant_count")
 
     const res = await fetch("/api/lots/create", {
       method: "POST",
@@ -27,6 +28,7 @@ export default function NewLotModal({ genetics, rooms }: Props) {
         genetic_id:    form.get("genetic_id") || null,
         room_id:       form.get("room_id") || null,
         seedling_date: form.get("seedling_date") || null,
+        plant_count:   plantCount ? parseInt(plantCount as string) : null,
         notes:         form.get("notes") || null,
       })
     })
@@ -75,11 +77,17 @@ export default function NewLotModal({ genetics, rooms }: Props) {
                 </select>
               </div>
             </div>
-            <div>
-              <label className="label-ong">Fecha de plantines</label>
-              <input name="seedling_date" type="date" className="input-ong" />
-              <p className="text-xs text-[#9ab894] mt-1">El estado del lote se actualizara automaticamente a medida que cargues las fechas de cada etapa.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label-ong">Fecha de plantines</label>
+                <input name="seedling_date" type="date" className="input-ong" />
+              </div>
+              <div>
+                <label className="label-ong">Cantidad de plantas</label>
+                <input name="plant_count" type="number" min="1" step="1" className="input-ong" placeholder="Ej: 20" />
+              </div>
             </div>
+            <p className="text-xs text-[#9ab894] -mt-2">El estado del lote se actualizara automaticamente a medida que cargues las fechas de cada etapa.</p>
             <div>
               <label className="label-ong">Notas</label>
               <textarea name="notes" rows={2} className="input-ong resize-none" placeholder="Observaciones iniciales..." />
