@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
   const service = await createServiceClient()
 
-  // Buscar el ciclo activo mas reciente
+  // Buscar ciclo activo
   const { data: activeCycle } = await service
     .from("production_cycles")
     .select("id, name")
@@ -22,7 +22,24 @@ export async function POST(request: Request) {
 
   if (!activeCycle) return NextResponse.json({ error: "No hay un ciclo activo. Crea un ciclo de produccion primero." }, { status: 400 })
 
+  // Obtener nombre de sala y genetica para el codigo
+  const [geneticRes, roomRes] = await Promise.all([
+    genetic_id ? service.from("genetics").select("name").eq("id", genetic_id).single() : Promise.resolve({ data: null }),
+    room_id ? service.from("rooms").select("name").eq("id", room_id).single() : Promise.resolve({ data: null }),
+  ])
+
+  const geneticName = (geneticRes as any).data?.name ?? null
+  const roomName = (roomRes as any).data?.name ?? null
+
+  // Generar codigo con nuevo formato L-Año-Sala-Genetica-Nro
+  const { data: lotCode } = await service.rpc("generate_lot_code", {
+    p_year: new Date().getFullYear(),
+    p_room_name: roomName,
+    p_genetic_name: geneticName,
+  })
+
   const { data, error } = await service.from("lots").insert({
+    lot_code: lotCode,
     genetic_id: genetic_id || null,
     room_id: room_id || null,
     seedling_date: seedling_date || null,
