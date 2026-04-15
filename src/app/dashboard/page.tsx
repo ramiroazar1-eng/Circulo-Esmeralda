@@ -2,7 +2,7 @@ import PlanReviewButtons from "./PlanReviewButtons"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Users, AlertTriangle, CheckCircle2, Clock, FileX, Building2, Pill, CreditCard, ArrowRight, FlaskConical, Package, AlertCircle } from "lucide-react"
+import { Users, AlertTriangle, CheckCircle2, Clock, FileX, Building2, Pill, CreditCard, ArrowRight, FlaskConical, AlertCircle, Sprout } from "lucide-react"
 import { StatCard, Card, SectionHeader, ComplianceBadge, PaymentStatusBadge, EmptyState } from "@/components/ui"
 import { formatDate, formatGrams, daysUntil } from "@/lib/utils"
 import type { PatientAlert, ComplianceSummary, CurrentMembership } from "@/types"
@@ -20,7 +20,7 @@ export default async function DashboardPage() {
   const [
     complianceRaw, alertsRaw, orgDocs, membershipsRaw,
     recentDispenses, stockData, planRequests, recentLog,
-    activeCycle, supplyAlerts, plannedEvents
+    activeCycle, plannedEvents, activePlantsRes
   ] = await Promise.all([
     supabase.from("v_compliance_summary").select("*").single(),
     supabase.from("v_patient_alerts").select("*").limit(10),
@@ -31,8 +31,8 @@ export default async function DashboardPage() {
     supabase.from("plan_requests").select("*, patient:patients(full_name), current_plan:membership_plans!plan_requests_current_plan_id_fkey(name), requested_plan:membership_plans!plan_requests_requested_plan_id_fkey(name)").eq("status", "pendiente").order("created_at", { ascending: false }).limit(10),
     supabase.from("daily_log_entries").select("id, entry_date, title, category, is_incident, created_by_profile:profiles(full_name)").order("created_at", { ascending: false }).limit(4),
     supabase.from("production_cycles").select("id, name, start_date, lots(id, lot_code, status, seedling_date, genetic:genetics(name), room:rooms(name))").eq("status", "activo").order("start_date", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("v_supply_stock").select("id, name, unit, stock_actual, stock_alert_threshold").eq("is_active", true).filter("stock_actual", "lte", supabase.rpc),
     supabase.from("planned_events").select("id, event_type, planned_date, notes, lot:lots(lot_code), room:rooms(name)").eq("status", "pendiente").gte("planned_date", new Date().toISOString().split("T")[0]).lte("planned_date", new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]).order("planned_date", { ascending: true }).limit(5),
+    supabase.from("v_active_plants").select("room_id, room_name, plant_count, lot_count"),
   ])
 
   const compliance = complianceRaw.data as ComplianceSummary | null
@@ -42,8 +42,9 @@ export default async function DashboardPage() {
   const cycle = activeCycle.data as any
   const lots = (cycle?.lots ?? []) as any[]
   const upcomingEvents = (plannedEvents.data ?? []) as any[]
+  const activePlants = (activePlantsRes?.data ?? []) as any[]
+  const totalActivePlants = activePlants.reduce((acc: number, r: any) => acc + (r.plant_count ?? 0), 0)
 
-  // Alertas de stock bajo
   const { data: supplyStockData } = await supabase.from("v_supply_stock").select("id, name, unit, stock_actual, stock_alert_threshold").eq("is_active", true)
   const lowStockItems = (supplyStockData ?? []).filter((s: any) => s.stock_alert_threshold > 0 && s.stock_actual <= s.stock_alert_threshold)
 
@@ -54,9 +55,9 @@ export default async function DashboardPage() {
   }
 
   const LOT_STATUS: Record<string, string> = {
-    plantines: "Plantines", vegetativo: "Vegetativo", poda: "Poda",
-    floracion: "Floracion", cosecha: "Cosecha", secado: "Secado",
-    curado: "Curado", finalizado: "Finalizado", descartado: "Descartado"
+    plantines: "Plantines", vegetativo: "Vegetativo", floracion: "Floracion",
+    cosecha: "Cosecha", secado: "Secado", curado: "Curado",
+    finalizado: "Finalizado", descartado: "Descartado"
   }
 
   return (
@@ -66,7 +67,6 @@ export default async function DashboardPage() {
         <p className="text-sm text-slate-500 mt-0.5">{new Date().toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
       </div>
 
-      {/* Alertas operativas */}
       {canSeeCultivo && (lowStockItems.length > 0 || upcomingEvents.length > 0) && (
         <div className="space-y-2">
           {lowStockItems.length > 0 && (
@@ -109,13 +109,13 @@ export default async function DashboardPage() {
         <StatCard label="Estado critico" value={compliance?.criticos ?? 0} variant="critico" icon={AlertTriangle} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="REPROCANN vencido" value={compliance?.reprocann_vencido ?? 0} variant={(compliance?.reprocann_vencido ?? 0) > 0 ? "critico" : "ok"} icon={FileX} />
         <StatCard label="REPROCANN proximo" value={compliance?.reprocann_proximo ?? 0} variant={(compliance?.reprocann_proximo ?? 0) > 0 ? "atencion" : "ok"} icon={Clock} />
         <StatCard label="Stock disponible" value={formatGrams(totalStock)} icon={Pill} />
+        {canSeeCultivo && <StatCard label="Plantas activas" value={totalActivePlants} icon={Sprout} />}
       </div>
 
-      {/* Ciclo activo */}
       {canSeeCultivo && cycle && (
         <Card padding={false}>
           <div className="px-5 pt-5 pb-4 flex items-center justify-between">
@@ -154,6 +154,22 @@ export default async function DashboardPage() {
                 )
               })}
             </div>
+
+            {activePlants.filter((r: any) => r.plant_count > 0).length > 0 && (
+              <div className="mt-4 pt-4 border-t border-[#eef5ea]">
+                <p className="text-xs font-medium text-[#6b8c65] mb-2">Plantas activas por sala</p>
+                <div className="flex flex-wrap gap-2">
+                  {activePlants.filter((r: any) => r.plant_count > 0).map((r: any) => (
+                    <div key={r.room_id} className="flex items-center gap-1.5 bg-[#f5faf3] border border-[#ddecd8] rounded-lg px-3 py-1.5">
+                      <Sprout className="w-3 h-3 text-[#2d5a27]" />
+                      <span className="text-xs font-medium text-[#1a2e1a]">{r.room_name}</span>
+                      <span className="text-xs font-bold text-[#2d5a27]">{r.plant_count} plantas</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 mt-3">
               <Link href={`/ciclos/${cycle.id}/timeline`} className="text-xs text-[#2d5a27] hover:underline flex items-center gap-1">
                 <FlaskConical className="w-3 h-3" />Ver linea de tiempo
