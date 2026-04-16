@@ -11,7 +11,7 @@ export default function RoomQRButton({ room }: Props) {
 
   if (!room.qr_token) return null
 
-  const qrUrl = `${typeof window !== "undefined" ? window.location.origin : "https://www.circuloesmeralda.com.ar"}/r/${room.qr_token}`
+  const qrUrl = `${typeof window !== "undefined" ? "https://www.circuloesmeralda.com.ar" : "https://www.circuloesmeralda.com.ar"}/r/${room.qr_token}`
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`
 
   function handlePrint() {
@@ -58,7 +58,7 @@ export default function RoomQRButton({ room }: Props) {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-xs">
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-                <h2 className="text-sm font-semibold text-slate-900">QR — {room.name}</h2>
+                <h2 className="text-sm font-semibold text-slate-900">QR â€” {room.name}</h2>
                 <button onClick={() => setOpen(false)}><X className="w-4 h-4 text-slate-400" /></button>
               </div>
               <div className="p-5 flex flex-col items-center gap-4">

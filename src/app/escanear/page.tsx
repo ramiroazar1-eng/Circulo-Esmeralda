@@ -21,8 +21,10 @@ export default function EscanearPage() {
     setLastScan(value)
     try {
       let token = value.trim()
-      if (value.includes("/r/")) {
-        token = value.split("/r/")[1].split("?")[0]
+      // Manejar URLs con o sin protocolo
+      const normalized = value.includes("://") ? value : "https://" + value
+      if (normalized.includes("/r/")) {
+        token = normalized.split("/r/")[1].split("?")[0]
       }
       router.push(`/r/${token}`)
     } catch (e) {
@@ -85,8 +87,8 @@ export default function EscanearPage() {
           <ScanLine className="w-4 h-4 text-[#2d5a27]" />
           <p className="text-xs font-medium text-[#1a2e1a]">Como funciona</p>
         </div>
-        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneÃ¡ el QR del paciente y luego el del lote.</p>
-        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneÃ¡ el QR pegado en la pared de la sala.</p>
+        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneÃƒÂ¡ el QR del paciente y luego el del lote.</p>
+        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneÃƒÂ¡ el QR pegado en la pared de la sala.</p>
       </div>
     </div>
   )
