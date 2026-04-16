@@ -1,4 +1,5 @@
 import PlanReviewButtons from "./PlanReviewButtons"
+import CycleRoomPanel from "./CycleRoomPanel"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
@@ -20,7 +21,7 @@ export default async function DashboardPage() {
   const [
     complianceRaw, alertsRaw, orgDocs, membershipsRaw,
     recentDispenses, stockData, planRequests, recentLog,
-    activeCycle, plannedEvents, activePlantsRes, pendingOrdersRes
+    activeCycle, plannedEvents, activePlantsRes, dashProductsRes, pendingOrdersRes
   ] = await Promise.all([
     supabase.from("v_compliance_summary").select("*").single(),
     supabase.from("v_patient_alerts").select("*").limit(10),
@@ -33,6 +34,8 @@ export default async function DashboardPage() {
     supabase.from("production_cycles").select("id, name, start_date, lots(id, lot_code, status, seedling_date, plant_count, genetic:genetics(name), room:rooms(name))").eq("status", "activo").order("start_date", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("planned_events").select("id, event_type, planned_date, notes, lot:lots(lot_code), room:rooms(name)").eq("status", "pendiente").gte("planned_date", new Date().toISOString().split("T")[0]).lte("planned_date", new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]).order("planned_date", { ascending: true }).limit(5),
     supabase.from("v_active_plants").select("room_id, room_name, plant_count, plants_veg, plants_flower, plants_seedling"),
+    supabase.from("v_supply_stock").select("id, name, unit, stock_actual, last_unit_cost").eq("is_active", true).gt("stock_actual", 0),
+    supabase.from("v_supply_stock").select("id, name, unit, stock_actual, last_unit_cost").eq("is_active", true).gt("stock_actual", 0),
     supabase.from("orders").select("id, status, patient:patients(full_name), created_at").in("status", ["nuevo","aprobado","en_preparacion","empaquetado"]).order("created_at", { ascending: false }).limit(8),
   ])
 
@@ -43,6 +46,7 @@ export default async function DashboardPage() {
   const cycle = activeCycle.data as any
   const lots = (cycle?.lots ?? []) as any[]
   const upcomingEvents = (plannedEvents.data ?? []) as any[]
+  const dashProducts = (dashProductsRes?.data ?? []) as any[]
   const activePlants = (activePlantsRes?.data ?? []) as any[]
   const totalActivePlants = activePlants.reduce((acc: number, r: any) => acc + (r.plant_count ?? 0), 0)
   const totalVeg = activePlants.reduce((acc: number, r: any) => acc + (r.plants_veg ?? 0), 0)
@@ -90,7 +94,7 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {lowStockItems.map((s: any) => (
                     <Link key={s.id} href={`/insumos/${s.id}`} className="text-xs bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5 hover:bg-amber-200 transition-colors">
-                      {s.name} — {s.stock_actual} {s.unit}
+                      {s.name} â€” {s.stock_actual} {s.unit}
                     </Link>
                   ))}
                 </div>
@@ -105,7 +109,7 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {upcomingEvents.map((e: any) => (
                     <span key={e.id} className="text-xs bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5">
-                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} — {EVENT_LABELS[e.event_type] ?? e.event_type}{e.room ? ` (${e.room.name})` : ""}
+                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} â€” {EVENT_LABELS[e.event_type] ?? e.event_type}{e.room ? ` (${e.room.name})` : ""}
                     </span>
                   ))}
                 </div>
@@ -188,56 +192,13 @@ export default async function DashboardPage() {
             </Link>
           </div>
           <div className="px-5 pb-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {lots.map((lot: any) => {
-                const daysInStage = lot.seedling_date
-                  ? Math.round((Date.now() - new Date(lot.seedling_date).getTime()) / (1000*60*60*24))
-                  : null
-                return (
-                  <Link key={lot.id} href={`/trazabilidad/${lot.id}`}>
-                    <div className="bg-[#f5faf3] border border-[#ddecd8] rounded-xl p-3 hover:border-[#4d8a3d] hover:bg-[#edf7e8] transition-colors">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-mono text-sm font-semibold text-[#1a2e1a] truncate">{lot.lot_code}</p>
-                          <p className="text-xs text-[#6b8c65] mt-0.5">{lot.genetic?.name ?? "Sin genetica"}</p>
-                          {lot.room && <p className="text-xs text-[#9ab894]">{lot.room.name}</p>}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-xs bg-[#2d5a27] text-[#a8e095] rounded-full px-2 py-0.5 whitespace-nowrap block">
-                            {LOT_STATUS[lot.status] ?? lot.status}
-                          </span>
-                          {lot.plant_count && (
-                            <span className="text-xs text-[#9ab894] mt-1 block">{lot.plant_count} plantas</span>
-                          )}
-                        </div>
-                      </div>
-                      {daysInStage && (
-                        <p className="text-xs text-[#9ab894] mt-2">{daysInStage} dias en ciclo</p>
-                      )}
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-
-            {activePlants.filter((r: any) => r.plant_count > 0).length > 0 && (
-              <div className="mt-4 pt-4 border-t border-[#eef5ea]">
-                <p className="text-xs font-medium text-[#6b8c65] mb-2">Plantas activas por sala</p>
-                <div className="flex flex-wrap gap-2">
-                  {activePlants.filter((r: any) => r.plant_count > 0).map((r: any) => (
-                    <div key={r.room_id} className="bg-[#f5faf3] border border-[#ddecd8] rounded-lg px-3 py-1.5">
-                      <p className="text-xs font-medium text-[#1a2e1a]">{r.room_name} — <span className="text-[#2d5a27] font-bold">{r.plant_count} plantas</span></p>
-                      <div className="flex gap-2 mt-0.5">
-                        {r.plants_seedling > 0 && <span className="text-xs text-slate-500">{r.plants_seedling} plantines</span>}
-                        {r.plants_veg > 0 && <span className="text-xs text-[#2d6a1f]">{r.plants_veg} vege</span>}
-                        {r.plants_flower > 0 && <span className="text-xs text-amber-600">{r.plants_flower} flora</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
+            <CycleRoomPanel
+              cycleId={cycle.id}
+              rooms={activePlants}
+              lots={lots}
+              products={dashProducts}
+              allRooms={activePlants.map((r: any) => ({ id: r.room_id, name: r.room_name, square_meters: r.square_meters }))}
+            />
             <div className="flex gap-2 mt-3">
               <Link href={`/ciclos/${cycle.id}/timeline`} className="text-xs text-[#2d5a27] hover:underline flex items-center gap-1">
                 <FlaskConical className="w-3 h-3" />Ver linea de tiempo
@@ -355,7 +316,7 @@ export default async function DashboardPage() {
                 <div key={d.id} className="flex items-center justify-between px-5 py-3">
                   <div className="min-w-0 mr-3">
                     <p className="text-sm font-medium text-slate-900 truncate">{d.patient?.full_name ?? "-"}</p>
-                    <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? "-"} · {formatDate(d.dispensed_at)}</p>
+                    <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? "-"} Â· {formatDate(d.dispensed_at)}</p>
                   </div>
                   <span className="text-sm font-medium text-slate-700 tabular-nums">{formatGrams(d.grams)}</span>
                 </div>
@@ -376,7 +337,7 @@ export default async function DashboardPage() {
                 <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${entry.is_incident ? "bg-red-500" : "bg-slate-300"}`} />
                 <div className="min-w-0">
                   <p className="text-sm text-slate-800 truncate">{entry.title}</p>
-                  <p className="text-xs text-slate-400">{formatDate(entry.entry_date)} · {(entry as any).created_by_profile?.full_name ?? "-"}</p>
+                  <p className="text-xs text-slate-400">{formatDate(entry.entry_date)} Â· {(entry as any).created_by_profile?.full_name ?? "-"}</p>
                 </div>
               </div>
             ))}
