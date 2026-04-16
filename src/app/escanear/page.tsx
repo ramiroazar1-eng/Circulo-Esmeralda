@@ -1,6 +1,7 @@
 "use client"
 import { useState, lazy, Suspense } from "react"
 import { useRouter } from "next/navigation"
+import { BackButton } from "@/components/ui/BackButton"
 import { Pill, Sprout, ScanLine, X } from "lucide-react"
 
 const QRCameraScanner = lazy(() => import("@/components/qr/QRCameraScanner"))
@@ -17,6 +18,7 @@ export default function EscanearPage() {
 
   return (
     <div className="max-w-md mx-auto space-y-6 pt-4">
+      <BackButton label="Volver al dashboard" />
       {scanning && (
         <Suspense fallback={null}>
           <QRCameraScanner onScan={handleRoomScan} onClose={() => setScanning(false)} />
@@ -63,8 +65,8 @@ export default function EscanearPage() {
           <ScanLine className="w-4 h-4 text-[#2d5a27]" />
           <p className="text-xs font-medium text-[#1a2e1a]">Como funciona</p>
         </div>
-        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneá el QR del paciente y luego el del lote.</p>
-        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneá el QR pegado en la pared de la sala.</p>
+        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneÃ¡ el QR del paciente y luego el del lote.</p>
+        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneÃ¡ el QR pegado en la pared de la sala.</p>
       </div>
     </div>
   )
