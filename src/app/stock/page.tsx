@@ -65,14 +65,14 @@ export default async function StockPage() {
 
       {/* Resumen global */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="bg-[#0f1f12] rounded-xl p-4 text-center">
+        {isAdmin && <div className="bg-[#0f1f12] rounded-xl p-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <Lock className="w-4 h-4 text-[#7dc264]" />
             <p className="text-xs font-medium text-[#7dc264] uppercase tracking-wide">Acopio</p>
           </div>
           <p className="text-3xl font-bold text-white">{formatGrams(totalAcopio)}</p>
           <p className="text-xs text-[#7a9e74] mt-1">bajo llave</p>
-        </div>
+        </div>}
         <div className="bg-white border border-[#ddecd8] rounded-xl p-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <Unlock className="w-4 h-4 text-[#2d5a27]" />
@@ -99,7 +99,7 @@ export default async function StockPage() {
               <thead>
                 <tr>
                   <th>Genetica</th>
-                  <th className="text-right">Acopio</th>
+                  {isAdmin && <th className="text-right">Acopio</th>}
                   <th className="text-right">Operativo</th>
                   <th className="text-right">Total</th>
                   {isAdmin && <th></th>}
@@ -109,12 +109,7 @@ export default async function StockPage() {
                 {Object.values(byGenetic).map((g: any) => (
                   <tr key={g.name}>
                     <td className="font-medium text-slate-900">{g.name}</td>
-                    <td className="text-right tabular-nums">
-                      <span className="flex items-center justify-end gap-1">
-                        <Lock className="w-3 h-3 text-slate-400" />
-                        {formatGrams(g.acopio)}
-                      </span>
-                    </td>
+                    {isAdmin && <td className="text-right tabular-nums"><span className="flex items-center justify-end gap-1"><Lock className="w-3 h-3 text-slate-400" />{formatGrams(g.acopio)}</span></td>}
                     <td className="text-right tabular-nums text-[#2d6a1f] font-medium">{formatGrams(g.operativo)}</td>
                     <td className="text-right tabular-nums font-bold text-slate-900">{formatGrams(g.acopio + g.operativo)}</td>
                     {isAdmin && (
@@ -214,14 +209,14 @@ export default async function StockPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold text-[#2d6a1f]">+{formatGrams(t.grams)}</p>
-                    <p className="text-sm text-slate-900">→ operativo</p>
+                    <p className="text-sm text-slate-900">Ã¢â€ â€™ operativo</p>
                     <span className="text-xs bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8] rounded px-1.5 py-0.5">
                       {t.lot?.lot_code}
                     </span>
                   </div>
                   <div className="flex gap-2 mt-0.5">
                     <p className="text-xs text-slate-500">{t.lot?.genetic?.name ?? "-"}</p>
-                    {t.notes && <p className="text-xs text-slate-400 italic">— {t.notes}</p>}
+                    {t.notes && <p className="text-xs text-slate-400 italic">Ã¢â‚¬â€ {t.notes}</p>}
                   </div>
                   {t.authorized_by_profile && (
                     <p className="text-xs text-slate-400 mt-0.5">Por: {t.authorized_by_profile.full_name}</p>

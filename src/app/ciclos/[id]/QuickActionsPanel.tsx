@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarPlus, FlaskConical, ChevronDown, ChevronUp, Zap } from "lucide-react"
+import { CalendarPlus, FlaskConical, ChevronDown, ChevronUp, Zap, Check } from "lucide-react"
 import { Button, Alert } from "@/components/ui"
 
 const EVENT_TYPES = [
@@ -17,16 +17,9 @@ const EVENT_TYPES = [
   { value: "otro",        label: "Otro" },
 ]
 
-interface Lot {
-  id: string
-  lot_code: string
-  status: string
-  genetic_name: string | null
-  room_name: string | null
-  room_id: string | null
-}
+interface Lot { id: string; lot_code: string; status: string; genetic_name: string | null; room_name: string | null; room_id: string | null }
 interface Product { id: string; name: string; unit: string; stock_actual: number; last_unit_cost: number | null }
-interface Room { id: string; name: string }
+interface Room { id: string; name: string; square_meters?: number }
 interface Template { id: string; name: string; event_type: string; notes: string | null }
 
 interface Props {
@@ -53,7 +46,7 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
   const [selectedEventLotId, setSelectedEventLotId] = useState("")
   const [selectedEventRoomId, setSelectedEventRoomId] = useState("")
   const [selectedInsumoLotId, setSelectedInsumoLotId] = useState("")
-  const [selectedInsumoRoomId, setSelectedInsumoRoomId] = useState("")
+  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([])
   const router = useRouter()
 
   useEffect(() => {
@@ -73,28 +66,43 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
     setSelectedEventRoomId(lot?.room_id ?? "")
   }
 
-  function handleInsumoLotChange(lotId: string) {
-    setSelectedInsumoLotId(lotId)
-    const lot = lots.find(l => l.id === lotId)
-    setSelectedInsumoRoomId(lot?.room_id ?? "")
-  }
-
   function handleProductChange(productId: string) {
     setSelectedProductId(productId)
     const product = products.find(p => p.id === productId)
     setUnitCost(product?.last_unit_cost ? product.last_unit_cost.toString() : "")
   }
 
+  function toggleRoom(roomId: string) {
+    setSelectedRoomIds(prev =>
+      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    )
+  }
+
+  function selectAllRooms() {
+    if (selectedRoomIds.length === rooms.length) {
+      setSelectedRoomIds([])
+    } else {
+      setSelectedRoomIds(rooms.map(r => r.id))
+    }
+  }
+
   function togglePanel(panel: "evento" | "insumo") {
     setActivePanel(prev => prev === panel ? null : panel)
     setError(null); setSuccess(null); setNotes(""); setEventType("riego")
     setSelectedEventLotId(""); setSelectedEventRoomId("")
-    setSelectedInsumoLotId(""); setSelectedInsumoRoomId("")
+    setSelectedInsumoLotId(""); setSelectedRoomIds([])
+    setSelectedProductId(""); setQuantity(""); setUnitCost("")
   }
 
   const totalCost = quantity && unitCost
     ? (parseFloat(quantity) * parseFloat(unitCost)).toLocaleString("es-AR", { minimumFractionDigits: 2 })
     : null
+
+  const selectedProduct = products.find(p => p.id === selectedProductId)
+
+  // Calcular distribucion por m2 para preview
+  const selectedRoomsData = rooms.filter(r => selectedRoomIds.includes(r.id))
+  const totalM2 = selectedRoomsData.reduce((acc, r) => acc + (r.square_meters ?? 0), 0)
 
   async function handleEventSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -136,6 +144,7 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
     const form = new FormData(e.currentTarget)
     const qty = parseFloat(quantity)
     const uc = parseFloat(unitCost) || null
+
     const res = await fetch("/api/supplies/movements", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -147,17 +156,18 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
         total_cost: uc ? qty * uc : null,
         cycle_id: cycleId,
         lot_id: selectedInsumoLotId || null,
-        room_id: selectedInsumoRoomId || null,
+        room_id: selectedRoomIds.length === 1 ? selectedRoomIds[0] : null,
+        room_ids: selectedRoomIds.length > 1 ? selectedRoomIds : undefined,
         notes: form.get("notes") || null,
         movement_date: form.get("movement_date"),
       })
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error); setLoading(false); return }
-    setSuccess("Consumo registrado")
+    setSuccess(selectedRoomIds.length > 1 ? `Consumo distribuido entre ${selectedRoomIds.length} salas` : "Consumo registrado")
     setLoading(false)
-    setSelectedProductId(""); setQuantity(""); setUnitCost("")
-    setTimeout(() => { setActivePanel(null); setSuccess(null); router.refresh() }, 1500)
+    setSelectedProductId(""); setQuantity(""); setUnitCost(""); setSelectedRoomIds([])
+    setTimeout(() => { setActivePanel(null); setSuccess(null); router.refresh() }, 1800)
   }
 
   return (
@@ -237,16 +247,12 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
                   <select className="input-ong" value={selectedEventLotId} onChange={e => handleEventLotChange(e.target.value)}>
                     <option value="">Todo el ciclo</option>
                     {lots.map(l => (
-                      <option key={l.id} value={l.id}>
-                        {l.lot_code}{l.genetic_name ? ` - ${l.genetic_name}` : ""}{l.room_name ? ` (${l.room_name})` : ""}
-                      </option>
+                      <option key={l.id} value={l.id}>{l.lot_code}{l.genetic_name ? ` - ${l.genetic_name}` : ""}{l.room_name ? ` (${l.room_name})` : ""}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="label-ong">
-                    Sala {selectedEventRoomId && <span className="text-[#9ab894] ml-1 font-normal">(autoasignada)</span>}
-                  </label>
+                  <label className="label-ong">Sala {selectedEventRoomId && <span className="text-[#9ab894] ml-1 font-normal">(autoasignada)</span>}</label>
                   <select className="input-ong" value={selectedEventRoomId} onChange={e => setSelectedEventRoomId(e.target.value)}>
                     <option value="">Sin especificar</option>
                     {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -288,48 +294,78 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
                 <select required className="input-ong" value={selectedProductId} onChange={e => handleProductChange(e.target.value)}>
                   <option value="">Selecciona un producto...</option>
                   {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} — stock: {p.stock_actual} {p.unit}</option>
+                    <option key={p.id} value={p.id}>{p.name} — {p.stock_actual} {p.unit}{p.last_unit_cost ? ` ($${p.last_unit_cost}/${p.unit})` : ""}</option>
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label-ong">Cantidad *</label>
-                  <input type="number" required min="0.01" step="0.01" className="input-ong"
-                    value={quantity} onChange={e => setQuantity(e.target.value)} />
+
+              {selectedProduct && (
+                <div className="bg-[#f5faf3] rounded-lg px-3 py-2 text-xs text-[#6b8c65]">
+                  Unidad: <span className="font-medium text-[#1a2e1a]">{selectedProduct.unit}</span>
+                  {selectedProduct.last_unit_cost && <span className="ml-3">Precio: <span className="font-medium text-[#1a2e1a]">${selectedProduct.last_unit_cost}/{selectedProduct.unit}</span></span>}
                 </div>
-                <div>
-                  <label className="label-ong">
-                    Costo unitario {unitCost && <span className="text-[#9ab894] ml-1 font-normal">(ultimo precio)</span>}
-                  </label>
-                  <input type="number" min="0" step="0.01" className="input-ong" placeholder="$0.00"
-                    value={unitCost} onChange={e => setUnitCost(e.target.value)} />
-                </div>
+              )}
+
+              <div>
+                <label className="label-ong">Cantidad ({selectedProduct?.unit ?? "unidad"}) *</label>
+                <input type="number" required min="0.01" step="0.01" className="input-ong"
+                  value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="0.0" />
               </div>
+
               {totalCost && (
-                <div className="bg-[#f5faf3] rounded-lg px-3 py-2 flex justify-between">
-                  <span className="text-xs text-[#6b8c65]">Costo total</span>
+                <div className="bg-[#edf7e8] border border-[#b8daa8] rounded-lg px-3 py-2 flex justify-between">
+                  <span className="text-xs text-[#6b8c65]">Costo total calculado</span>
                   <span className="text-sm font-bold text-[#1a2e1a]">${totalCost}</span>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label-ong">Lote</label>
-                  <select className="input-ong" value={selectedInsumoLotId} onChange={e => handleInsumoLotChange(e.target.value)}>
-                    <option value="">Sin asignar</option>
-                    {lots.map(l => <option key={l.id} value={l.id}>{l.lot_code}{l.room_name ? ` (${l.room_name})` : ""}</option>)}
-                  </select>
+
+              {/* Seleccion de salas */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="label-ong mb-0">Salas donde se uso</label>
+                  <button type="button" onClick={selectAllRooms}
+                    className="text-xs text-[#2d5a27] hover:underline">
+                    {selectedRoomIds.length === rooms.length ? "Deseleccionar todas" : "Todas las salas"}
+                  </button>
                 </div>
-                <div>
-                  <label className="label-ong">
-                    Sala {selectedInsumoRoomId && <span className="text-[#9ab894] ml-1 font-normal">(autoasignada)</span>}
-                  </label>
-                  <select className="input-ong" value={selectedInsumoRoomId} onChange={e => setSelectedInsumoRoomId(e.target.value)}>
-                    <option value="">Sin asignar</option>
-                    {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
+                <div className="grid grid-cols-2 gap-2">
+                  {rooms.map(r => (
+                    <button key={r.id} type="button" onClick={() => toggleRoom(r.id)}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-colors ${
+                        selectedRoomIds.includes(r.id)
+                          ? "bg-[#edf7e8] border-[#2d5a27] text-[#1a2e1a] font-medium"
+                          : "bg-white border-slate-200 text-slate-600 hover:border-[#4d8a3d]"
+                      }`}>
+                      <span>{r.name}</span>
+                      {selectedRoomIds.includes(r.id) && <Check className="w-3 h-3 text-[#2d5a27]" />}
+                    </button>
+                  ))}
                 </div>
+                {selectedRoomIds.length > 1 && totalM2 > 0 && quantity && (
+                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    <p className="text-xs font-medium text-blue-800 mb-1">Distribucion por m²:</p>
+                    {selectedRoomsData.map(r => {
+                      const prop = (r.square_meters ?? 0) / totalM2
+                      const qty = (parseFloat(quantity) * prop).toFixed(2)
+                      const cost = unitCost ? `$${(parseFloat(qty) * parseFloat(unitCost)).toFixed(2)}` : ""
+                      return (
+                        <p key={r.id} className="text-xs text-blue-700">
+                          {r.name}: {qty} {selectedProduct?.unit ?? ""} {cost && `(${cost})`} — {(prop * 100).toFixed(0)}%
+                        </p>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
+
+              <div>
+                <label className="label-ong">Lote (opcional)</label>
+                <select className="input-ong" value={selectedInsumoLotId} onChange={e => setSelectedInsumoLotId(e.target.value)}>
+                  <option value="">Sin asignar a lote especifico</option>
+                  {lots.map(l => <option key={l.id} value={l.id}>{l.lot_code}{l.room_name ? ` (${l.room_name})` : ""}</option>)}
+                </select>
+              </div>
+
               <div>
                 <label className="label-ong">Fecha *</label>
                 <input name="movement_date" type="date" required className="input-ong"
@@ -341,7 +377,9 @@ export default function QuickActionsPanel({ cycleId, lots, products, rooms, canM
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="secondary" size="sm" onClick={() => setActivePanel(null)}>Cancelar</Button>
-                <Button type="submit" size="sm" loading={loading}>Registrar consumo</Button>
+                <Button type="submit" size="sm" loading={loading}>
+                  {selectedRoomIds.length > 1 ? `Distribuir en ${selectedRoomIds.length} salas` : "Registrar consumo"}
+                </Button>
               </div>
             </form>
           )}
