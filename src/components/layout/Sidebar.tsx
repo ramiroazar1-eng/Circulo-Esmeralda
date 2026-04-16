@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/types"
-import { LayoutDashboard, Users, Building2, FlaskConical, Pill, CreditCard, BookOpen, Shield, Settings, LogOut, UserCog, ChevronRight, FileDown, QrCode, Package, Menu, X } from "lucide-react"
+import { LayoutDashboard, Users, Building2, FlaskConical, Pill, CreditCard, BookOpen, Shield, Settings, LogOut, UserCog, ChevronRight, FileDown, QrCode, Package, Menu, X, Lock } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { PushNotifications } from "./PushNotifications"
 import { useRouter } from "next/navigation"
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/dispensas/pedidos",   label: "Pedidos",            icon: Package,         roles: ["admin","administrativo"] },
   { href: "/dispensas/qr",        label: "Dispensa por QR",    icon: QrCode,          roles: ["admin","administrativo"] },
   { href: "/dispensas",           label: "Dispensas",          icon: Pill,            roles: ["admin","administrativo"] },
+  { href: "/stock",               label: "Control de stock",    icon: Lock,            roles: ["admin","administrativo"] },
   { href: "/trazabilidad",        label: "Trazabilidad",       icon: FlaskConical,    roles: ["admin","administrativo","biologo"] },
   { href: "/ciclos",              label: "Ciclos",             icon: FlaskConical,    roles: ["admin","administrativo","biologo"] },
   { href: "/membresias",          label: "Membresias",         icon: CreditCard,      roles: ["admin"] },
