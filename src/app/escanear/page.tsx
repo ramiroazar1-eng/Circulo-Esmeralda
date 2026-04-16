@@ -11,6 +11,7 @@ export default function EscanearPage() {
   const router = useRouter()
 
   function handleRoomScan(value: string) {
+    console.log("QR scanned:", value)
     setScanning(false)
     const token = value.includes("/r/") ? value.split("/r/")[1].split("?")[0] : value.trim()
     router.push(`/r/${token}`)
@@ -65,8 +66,8 @@ export default function EscanearPage() {
           <ScanLine className="w-4 h-4 text-[#2d5a27]" />
           <p className="text-xs font-medium text-[#1a2e1a]">Como funciona</p>
         </div>
-        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneÃ¡ el QR del paciente y luego el del lote.</p>
-        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneÃ¡ el QR pegado en la pared de la sala.</p>
+        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneÃƒÂ¡ el QR del paciente y luego el del lote.</p>
+        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneÃƒÂ¡ el QR pegado en la pared de la sala.</p>
       </div>
     </div>
   )
