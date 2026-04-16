@@ -49,7 +49,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
 
   const [cycleRes, expensesRes, eventsRes, roomsRes, closuresRes, productsRes] = await Promise.all([
     supabase.from("production_cycles")
-      .select("*, lots(id, lot_code, status, net_grams, gross_grams, seedling_date, veg_date, flower_date, harvest_date, drying_start_date, drying_days, curing_start_date, curing_days, genetic:genetics(name), room:rooms(name))")
+      .select("*, lots(id, lot_code, status, net_grams, gross_grams, seedling_date, veg_date, flower_date, harvest_date, drying_start_date, drying_days, curing_start_date, curing_days, plant_count, genetic:genetics(name), room:rooms(name))")
       .eq("id", id).single(),
     supabase.from("cycle_expense_allocations")
       .select("allocated_amount, expense:cycle_expenses(id, category, description, supplier, total_amount, useful_cycles, purchase_date, notes)")
@@ -80,6 +80,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const totalGross = lots.reduce((acc: number, l: any) => acc + (l.gross_grams ?? 0), 0)
   const genetics = [...new Set(lots.map((l: any) => l.genetic?.name).filter(Boolean))]
   const totalExpenses = expenses.reduce((acc: number, e: any) => acc + parseFloat(e.allocated_amount), 0)
+  const totalPlants = lots.reduce((acc: number, l: any) => acc + (l.plant_count ?? 0), 0)
   const costPerGram = totalNet > 0 && totalExpenses > 0 ? (totalExpenses / totalNet).toFixed(2) : null
 
   const startDate = cycle.start_date
@@ -163,6 +164,10 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
         <div className="bg-white border border-[#ddecd8] rounded-xl p-4 text-center">
           <p className="text-2xl font-black text-[#1a2e1a]">{lots.length}</p>
           <p className="text-[10px] text-[#9ab894] uppercase tracking-wide mt-1">Lotes</p>
+        </div>
+        <div className="bg-white border border-[#ddecd8] rounded-xl p-4 text-center">
+          <p className="text-2xl font-black text-[#1a2e1a]">{totalPlants > 0 ? totalPlants : "-"}</p>
+          <p className="text-[10px] text-[#9ab894] uppercase tracking-wide mt-1">Plantas</p>
         </div>
         <div className="bg-white border border-[#ddecd8] rounded-xl p-4 text-center">
           <p className="text-2xl font-black text-[#1a2e1a]">{durationDays ?? "-"}</p>

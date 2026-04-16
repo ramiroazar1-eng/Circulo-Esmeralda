@@ -185,9 +185,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
 
           <Card>
             <SectionHeader title="Stock" />
-            <dl className="space-y-3 text-sm">
-              <div><dt className="text-xs text-[#9ab894]">Stock inicial</dt><dd className="font-semibold text-[#1a2e1a]">{lot.net_grams ? formatGrams(lot.net_grams) : "-"}</dd></div>
-              {stockPosition && (
+            <dl className="space-y-3 text-sm">              {stockPosition && (
                 <>
                   <div><dt className="text-xs text-[#9ab894]">Stock disponible</dt><dd className="font-semibold text-[#2d6a1f]">{formatGrams(stockPosition.available_grams)}</dd></div>
                   {stockPosition.reserved_grams > 0 && <div><dt className="text-xs text-[#9ab894]">Reservado (pedidos)</dt><dd className="font-semibold text-amber-600">{formatGrams(stockPosition.reserved_grams)}</dd></div>}

@@ -2,8 +2,8 @@ import PlanReviewButtons from "./PlanReviewButtons"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Users, AlertTriangle, CheckCircle2, Clock, FileX, Building2, Pill, CreditCard, ArrowRight, FlaskConical, AlertCircle, Sprout } from "lucide-react"
-import { StatCard, Card, SectionHeader, ComplianceBadge, PaymentStatusBadge, EmptyState } from "@/components/ui"
+import { Users, AlertTriangle, CheckCircle2, Clock, FileX, Building2, Pill, CreditCard, ArrowRight, FlaskConical, AlertCircle, Sprout, ShoppingBag } from "lucide-react"
+import { Card, SectionHeader, ComplianceBadge, PaymentStatusBadge, EmptyState } from "@/components/ui"
 import { formatDate, formatGrams, daysUntil } from "@/lib/utils"
 import type { PatientAlert, ComplianceSummary, CurrentMembership } from "@/types"
 
@@ -20,7 +20,7 @@ export default async function DashboardPage() {
   const [
     complianceRaw, alertsRaw, orgDocs, membershipsRaw,
     recentDispenses, stockData, planRequests, recentLog,
-    activeCycle, plannedEvents, activePlantsRes
+    activeCycle, plannedEvents, activePlantsRes, pendingOrdersRes
   ] = await Promise.all([
     supabase.from("v_compliance_summary").select("*").single(),
     supabase.from("v_patient_alerts").select("*").limit(10),
@@ -30,9 +30,10 @@ export default async function DashboardPage() {
     supabase.from("stock_positions").select("available_grams"),
     supabase.from("plan_requests").select("*, patient:patients(full_name), current_plan:membership_plans!plan_requests_current_plan_id_fkey(name), requested_plan:membership_plans!plan_requests_requested_plan_id_fkey(name)").eq("status", "pendiente").order("created_at", { ascending: false }).limit(10),
     supabase.from("daily_log_entries").select("id, entry_date, title, category, is_incident, created_by_profile:profiles(full_name)").order("created_at", { ascending: false }).limit(4),
-    supabase.from("production_cycles").select("id, name, start_date, lots(id, lot_code, status, seedling_date, genetic:genetics(name), room:rooms(name))").eq("status", "activo").order("start_date", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("production_cycles").select("id, name, start_date, lots(id, lot_code, status, seedling_date, plant_count, genetic:genetics(name), room:rooms(name))").eq("status", "activo").order("start_date", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("planned_events").select("id, event_type, planned_date, notes, lot:lots(lot_code), room:rooms(name)").eq("status", "pendiente").gte("planned_date", new Date().toISOString().split("T")[0]).lte("planned_date", new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]).order("planned_date", { ascending: true }).limit(5),
-    supabase.from("v_active_plants").select("room_id, room_name, plant_count, lot_count"),
+    supabase.from("v_active_plants").select("room_id, room_name, plant_count, plants_veg, plants_flower, plants_seedling"),
+    supabase.from("orders").select("id, status, patient:patients(full_name), created_at").in("status", ["nuevo","aprobado","en_preparacion","empaquetado"]).order("created_at", { ascending: false }).limit(8),
   ])
 
   const compliance = complianceRaw.data as ComplianceSummary | null
@@ -44,6 +45,10 @@ export default async function DashboardPage() {
   const upcomingEvents = (plannedEvents.data ?? []) as any[]
   const activePlants = (activePlantsRes?.data ?? []) as any[]
   const totalActivePlants = activePlants.reduce((acc: number, r: any) => acc + (r.plant_count ?? 0), 0)
+  const totalVeg = activePlants.reduce((acc: number, r: any) => acc + (r.plants_veg ?? 0), 0)
+  const totalFlower = activePlants.reduce((acc: number, r: any) => acc + (r.plants_flower ?? 0), 0)
+  const totalSeedling = activePlants.reduce((acc: number, r: any) => acc + (r.plants_seedling ?? 0), 0)
+  const pendingOrders = (pendingOrdersRes?.data ?? []) as any[]
 
   const { data: supplyStockData } = await supabase.from("v_supply_stock").select("id, name, unit, stock_actual, stock_alert_threshold").eq("is_active", true)
   const lowStockItems = (supplyStockData ?? []).filter((s: any) => s.stock_alert_threshold > 0 && s.stock_actual <= s.stock_alert_threshold)
@@ -60,13 +65,21 @@ export default async function DashboardPage() {
     finalizado: "Finalizado", descartado: "Descartado"
   }
 
+  const ORDER_STATUS: Record<string, { label: string; color: string }> = {
+    nuevo:          { label: "Nuevo",          color: "bg-blue-50 text-blue-700 border-blue-200" },
+    aprobado:       { label: "Aprobado",        color: "bg-green-50 text-green-700 border-green-200" },
+    en_preparacion: { label: "En preparacion",  color: "bg-amber-50 text-amber-700 border-amber-200" },
+    empaquetado:    { label: "Listo",           color: "bg-purple-50 text-purple-700 border-purple-200" },
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Panel de control</h1>
         <p className="text-sm text-slate-500 mt-0.5">{new Date().toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
       </div>
 
+      {/* Alertas operativas */}
       {canSeeCultivo && (lowStockItems.length > 0 || upcomingEvents.length > 0) && (
         <div className="space-y-2">
           {lowStockItems.length > 0 && (
@@ -102,26 +115,73 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Pacientes activos" value={compliance?.total_activos ?? 0} icon={Users} />
-        <StatCard label="En regla" value={compliance?.en_regla ?? 0} variant="ok" icon={CheckCircle2} />
-        <StatCard label="Requieren atencion" value={compliance?.en_atencion ?? 0} variant="atencion" icon={Clock} />
-        <StatCard label="Estado critico" value={compliance?.criticos ?? 0} variant="critico" icon={AlertTriangle} />
-      </div>
-
+      {/* KPIs unificados */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="REPROCANN vencido" value={compliance?.reprocann_vencido ?? 0} variant={(compliance?.reprocann_vencido ?? 0) > 0 ? "critico" : "ok"} icon={FileX} />
-        <StatCard label="REPROCANN proximo" value={compliance?.reprocann_proximo ?? 0} variant={(compliance?.reprocann_proximo ?? 0) > 0 ? "atencion" : "ok"} icon={Clock} />
-        <StatCard label="Stock disponible" value={formatGrams(totalStock)} icon={Pill} />
-        {canSeeCultivo && <StatCard label="Plantas activas" value={totalActivePlants} icon={Sprout} />}
+        {/* Compliance resumido */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 col-span-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-3">Pacientes</p>
+          <div className="grid grid-cols-4 gap-2">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-slate-900">{compliance?.total_activos ?? 0}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Total</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-green-700">{compliance?.en_regla ?? 0}</p>
+              <p className="text-xs text-slate-400 mt-0.5">En regla</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-amber-600">{compliance?.en_atencion ?? 0}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Atencion</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-red-600">{compliance?.criticos ?? 0}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Critico</p>
+            </div>
+          </div>
+          {((compliance?.reprocann_vencido ?? 0) > 0 || (compliance?.reprocann_proximo ?? 0) > 0) && (
+            <div className="flex gap-3 mt-3 pt-3 border-t border-slate-100">
+              {(compliance?.reprocann_vencido ?? 0) > 0 && (
+                <span className="text-xs bg-red-50 text-red-700 border border-red-200 rounded-full px-2.5 py-0.5">
+                  REPROCANN vencido: {compliance?.reprocann_vencido}
+                </span>
+              )}
+              {(compliance?.reprocann_proximo ?? 0) > 0 && (
+                <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5">
+                  REPROCANN proximo: {compliance?.reprocann_proximo}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Stock */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1">Stock</p>
+          <p className="text-2xl font-bold text-slate-900">{formatGrams(totalStock)}</p>
+          <p className="text-xs text-slate-400 mt-0.5">disponible</p>
+        </div>
+
+        {/* Plantas activas */}
+        {canSeeCultivo && (
+          <div className="bg-white border border-[#ddecd8] rounded-xl p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#6b8c65] mb-1">Plantas activas</p>
+            <p className="text-2xl font-bold text-[#1a2e1a]">{totalActivePlants}</p>
+            <div className="flex gap-2 mt-1.5 flex-wrap">
+              {totalSeedling > 0 && <span className="text-xs text-slate-500">{totalSeedling} plantines</span>}
+              {totalVeg > 0 && <span className="text-xs text-[#2d6a1f] font-medium">{totalVeg} vege</span>}
+              {totalFlower > 0 && <span className="text-xs text-amber-600 font-medium">{totalFlower} flora</span>}
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Ciclo activo */}
       {canSeeCultivo && cycle && (
         <Card padding={false}>
           <div className="px-5 pt-5 pb-4 flex items-center justify-between">
             <div>
               <SectionHeader title={`Ciclo activo — ${cycle.name}`} />
-              <p className="text-xs text-slate-500 -mt-3">Desde {formatDate(cycle.start_date)} · {lots.length} lote{lots.length !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-slate-500 -mt-3">Desde {formatDate(cycle.start_date)} · {lots.length} lote{lots.length !== 1 ? "s" : ""} · {totalActivePlants} plantas activas</p>
             </div>
             <Link href={`/ciclos/${cycle.id}`} className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 shrink-0">
               Ver ciclo <ArrowRight className="w-3 h-3" />
@@ -142,9 +202,14 @@ export default async function DashboardPage() {
                           <p className="text-xs text-[#6b8c65] mt-0.5">{lot.genetic?.name ?? "Sin genetica"}</p>
                           {lot.room && <p className="text-xs text-[#9ab894]">{lot.room.name}</p>}
                         </div>
-                        <span className="text-xs bg-[#2d5a27] text-[#a8e095] rounded-full px-2 py-0.5 shrink-0 whitespace-nowrap">
-                          {LOT_STATUS[lot.status] ?? lot.status}
-                        </span>
+                        <div className="text-right shrink-0">
+                          <span className="text-xs bg-[#2d5a27] text-[#a8e095] rounded-full px-2 py-0.5 whitespace-nowrap block">
+                            {LOT_STATUS[lot.status] ?? lot.status}
+                          </span>
+                          {lot.plant_count && (
+                            <span className="text-xs text-[#9ab894] mt-1 block">{lot.plant_count} plantas</span>
+                          )}
+                        </div>
                       </div>
                       {daysInStage && (
                         <p className="text-xs text-[#9ab894] mt-2">{daysInStage} dias en ciclo</p>
@@ -160,10 +225,13 @@ export default async function DashboardPage() {
                 <p className="text-xs font-medium text-[#6b8c65] mb-2">Plantas activas por sala</p>
                 <div className="flex flex-wrap gap-2">
                   {activePlants.filter((r: any) => r.plant_count > 0).map((r: any) => (
-                    <div key={r.room_id} className="flex items-center gap-1.5 bg-[#f5faf3] border border-[#ddecd8] rounded-lg px-3 py-1.5">
-                      <Sprout className="w-3 h-3 text-[#2d5a27]" />
-                      <span className="text-xs font-medium text-[#1a2e1a]">{r.room_name}</span>
-                      <span className="text-xs font-bold text-[#2d5a27]">{r.plant_count} plantas</span>
+                    <div key={r.room_id} className="bg-[#f5faf3] border border-[#ddecd8] rounded-lg px-3 py-1.5">
+                      <p className="text-xs font-medium text-[#1a2e1a]">{r.room_name} — <span className="text-[#2d5a27] font-bold">{r.plant_count} plantas</span></p>
+                      <div className="flex gap-2 mt-0.5">
+                        {r.plants_seedling > 0 && <span className="text-xs text-slate-500">{r.plants_seedling} plantines</span>}
+                        {r.plants_veg > 0 && <span className="text-xs text-[#2d6a1f]">{r.plants_veg} vege</span>}
+                        {r.plants_flower > 0 && <span className="text-xs text-amber-600">{r.plants_flower} flora</span>}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -175,6 +243,31 @@ export default async function DashboardPage() {
                 <FlaskConical className="w-3 h-3" />Ver linea de tiempo
               </Link>
             </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Pedidos pendientes */}
+      {pendingOrders.length > 0 && (
+        <Card padding={false}>
+          <div className="px-5 pt-5 pb-4">
+            <SectionHeader title={`Pedidos activos (${pendingOrders.length})`} actions={
+              <Link href="/dispensas/pedidos" className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1">Ver todos <ArrowRight className="w-3 h-3" /></Link>
+            } />
+          </div>
+          <div className="divide-y divide-slate-100">
+            {pendingOrders.map((order: any) => {
+              const config = ORDER_STATUS[order.status] ?? { label: order.status, color: "bg-slate-50 text-slate-600 border-slate-200" }
+              return (
+                <div key={order.id} className="flex items-center justify-between px-5 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{order.patient?.full_name ?? "-"}</p>
+                    <p className="text-xs text-slate-400">{formatDate(order.created_at)}</p>
+                  </div>
+                  <span className={`text-xs rounded-full px-2.5 py-0.5 border font-medium ${config.color}`}>{config.label}</span>
+                </div>
+              )
+            })}
           </div>
         </Card>
       )}
