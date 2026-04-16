@@ -26,7 +26,7 @@ export default function EscanearPage() {
       if (normalized.includes("/r/")) {
         token = normalized.split("/r/")[1].split("?")[0]
       }
-      router.push(`/r/${token}`)
+      window.location.href = `/r/${token}`
     } catch (e) {
       setLastScan(`Error: ${e} | valor: ${value}`)
     }
@@ -87,8 +87,8 @@ export default function EscanearPage() {
           <ScanLine className="w-4 h-4 text-[#2d5a27]" />
           <p className="text-xs font-medium text-[#1a2e1a]">Como funciona</p>
         </div>
-        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneÃƒÂ¡ el QR del paciente y luego el del lote.</p>
-        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneÃƒÂ¡ el QR pegado en la pared de la sala.</p>
+        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneÃƒÆ’Ã‚Â¡ el QR del paciente y luego el del lote.</p>
+        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneÃƒÆ’Ã‚Â¡ el QR pegado en la pared de la sala.</p>
       </div>
     </div>
   )
