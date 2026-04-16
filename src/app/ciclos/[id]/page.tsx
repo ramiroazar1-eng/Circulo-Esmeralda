@@ -107,6 +107,15 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
     return acc
   }, {})
 
+  // Agrupar lotes por sala
+  const lotsBySala: Record<string, { room_name: string; lots: any[] }> = {}
+  for (const lot of lots) {
+    const roomKey = lot.room?.name ?? "Sin sala"
+    if (!lotsBySala[roomKey]) lotsBySala[roomKey] = { room_name: roomKey, lots: [] }
+    lotsBySala[roomKey].lots.push(lot)
+  }
+  const salasList = Object.values(lotsBySala).sort((a, b) => a.room_name.localeCompare(b.room_name))
+
   const lotsForPanel = lots.map((l: any) => ({
     id: l.id,
     lot_code: l.lot_code,
@@ -189,39 +198,59 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
         />
       )}
 
-      <Card padding={false}>
-        <div className="px-5 pt-5 pb-4"><SectionHeader title="Lotes del ciclo" /></div>
-        <div className="divide-y divide-[#f5faf3]">
-          {lots.map((lot: any) => {
-            const daysInCycle = lot.seedling_date
-              ? Math.round((Date.now() - new Date(lot.seedling_date).getTime()) / (1000*60*60*24))
-              : null
-            return (
-              <Link key={lot.id} href={`/trazabilidad/${lot.id}`}>
-                <div className="flex items-center justify-between px-5 py-3 hover:bg-[#f5faf3] transition-colors">
-                  <div>
-                    <p className="font-mono font-medium text-[#1a2e1a]">{lot.lot_code}</p>
-                    <p className="text-xs text-[#6b8c65]">
-                      {lot.genetic?.name ?? "Sin genetica"}
-                      {lot.room?.name && ` - ${lot.room.name}`}
-                      {daysInCycle && ` - ${daysInCycle} dias`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-[#1a2e1a]">{lot.net_grams ? formatGrams(lot.net_grams) : "-"}</p>
-                      <p className="text-xs text-[#9ab894]">netos</p>
-                    </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${lot.status === "finalizado" ? "bg-[#edf7e8] text-[#2d6a1f] border-[#b8daa8]" : "bg-[#fdf8ec] text-[#8a6010] border-[#e8d48a]"}`}>
-                      {lot.status}
-                    </span>
-                  </div>
+      <div className="space-y-3">
+        <SectionHeader title="Salas del ciclo" />
+        {salasList.map((sala: any) => {
+          const salaPlants = sala.lots.reduce((acc: number, l: any) => acc + (l.plant_count ?? 0), 0)
+          const salaStatus = sala.lots.map((l: any) => l.status).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i)
+          return (
+            <div key={sala.room_name} className="bg-white border border-[#ddecd8] rounded-xl overflow-hidden">
+              <div className="px-5 py-3 bg-[#0f1f12] flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#e8f5e3]">{sala.room_name}</p>
+                  <p className="text-xs text-[#7a9e74] mt-0.5">
+                    {sala.lots.length} lote{sala.lots.length !== 1 ? "s" : ""}
+                    {salaPlants > 0 && ` · ${salaPlants} plantas`}
+                    {salaStatus.length > 0 && ` · ${salaStatus.join(", ")}`}
+                  </p>
                 </div>
-              </Link>
-            )
-          })}
-        </div>
-      </Card>
+              </div>
+              <div className="divide-y divide-[#f5faf3]">
+                {sala.lots.map((lot: any) => {
+                  const daysInCycle = lot.seedling_date
+                    ? Math.round((Date.now() - new Date(lot.seedling_date).getTime()) / (1000*60*60*24))
+                    : null
+                  return (
+                    <Link key={lot.id} href={`/trazabilidad/${lot.id}`}>
+                      <div className="flex items-center justify-between px-5 py-3 hover:bg-[#f5faf3] transition-colors">
+                        <div>
+                          <p className="font-mono font-medium text-[#1a2e1a]">{lot.lot_code}</p>
+                          <p className="text-xs text-[#6b8c65]">
+                            {lot.genetic?.name ?? "Sin genetica"}
+                            {lot.plant_count && ` · ${lot.plant_count} plantas`}
+                            {daysInCycle && ` · ${daysInCycle} dias`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {lot.net_grams > 0 && (
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-[#1a2e1a]">{formatGrams(lot.net_grams)}</p>
+                              <p className="text-xs text-[#9ab894]">cosechados</p>
+                            </div>
+                          )}
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${lot.status === "finalizado" ? "bg-[#edf7e8] text-[#2d6a1f] border-[#b8daa8]" : "bg-[#fdf8ec] text-[#8a6010] border-[#e8d48a]"}`}>
+                            {lot.status}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>

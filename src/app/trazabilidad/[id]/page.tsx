@@ -5,6 +5,7 @@ import { Card, SectionHeader } from "@/components/ui"
 import { formatDate, formatGrams } from "@/lib/utils"
 import EditLotModal from "../EditLotModal"
 import TransferLotModal from "../TransferLotModal"
+import Link from "next/link"
 import QRDisplay from "@/components/qr/QRDisplay"
 
 const TIMELINE_STEPS = [
@@ -184,13 +185,19 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
           </Card>
 
           <Card>
-            <SectionHeader title="Stock" />
-            <dl className="space-y-3 text-sm">              {stockPosition && (
-                <>
-                  <div><dt className="text-xs text-[#9ab894]">Stock disponible</dt><dd className="font-semibold text-[#2d6a1f]">{formatGrams(stockPosition.available_grams)}</dd></div>
-                  {stockPosition.reserved_grams > 0 && <div><dt className="text-xs text-[#9ab894]">Reservado (pedidos)</dt><dd className="font-semibold text-amber-600">{formatGrams(stockPosition.reserved_grams)}</dd></div>}
-                  {dispensed !== null && dispensed > 0 && <div><dt className="text-xs text-[#9ab894]">Dispensado</dt><dd className="font-semibold text-red-500">{formatGrams(dispensed)}</dd></div>}
-                </>
+            <SectionHeader title="Produccion" />
+            <dl className="space-y-3 text-sm">
+              <div><dt className="text-xs text-[#9ab894]">Peso bruto cosecha</dt><dd className="font-semibold text-[#1a2e1a]">{lot.gross_grams ? formatGrams(lot.gross_grams) : "-"}</dd></div>
+              <div><dt className="text-xs text-[#9ab894]">Peso neto</dt><dd className="font-semibold text-[#2d6a1f]">{lot.net_grams ? formatGrams(lot.net_grams) : "-"}</dd></div>
+              {lot.net_grams && lot.gross_grams && (
+                <div><dt className="text-xs text-[#9ab894]">Merma</dt><dd className="font-semibold text-amber-600">{(((lot.gross_grams - lot.net_grams) / lot.gross_grams) * 100).toFixed(1)}%</dd></div>
+              )}
+              {lot.net_grams && (
+                <div className="pt-2 border-t border-[#eef5ea]">
+                  <Link href="/stock" className="text-xs text-[#2d5a27] hover:underline flex items-center gap-1">
+                    Ver stock en control de stock
+                  </Link>
+                </div>
               )}
             </dl>
           </Card>

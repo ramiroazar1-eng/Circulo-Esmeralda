@@ -10,6 +10,7 @@ import NewGeneticModal from "./NewGeneticModal"
 import NewRoomModal from "./NewRoomModal"
 import { EditGeneticButton, EditRoomButton } from "./EditGeneticRoomButtons"
 import RecurringExpensesSection from "./RecurringExpensesSection"
+import RoomQRButton from "./RoomQRButton"
 
 export default async function ConfiguracionPage() {
   const supabase = await createClient()
@@ -20,7 +21,7 @@ export default async function ConfiguracionPage() {
 
   const { data: plans } = await supabase.from("membership_plans").select("*").order("monthly_amount")
   const { data: genetics } = await supabase.from("genetics").select("*").order("name")
-  const { data: rooms } = await supabase.from("rooms").select("*").order("name")
+  const { data: rooms } = await supabase.from("rooms").select("*, qr_token").order("name")
 
   const { data: patientCounts } = await supabase
     .from("patients")
@@ -89,7 +90,7 @@ export default async function ConfiguracionPage() {
         ) : (
           <Table>
             <thead>
-              <tr><th>Nombre</th><th>Descripcion</th><th>Estado</th><th>Acciones</th></tr>
+              <tr><th>Nombre</th><th>Descripcion</th><th>Estado</th><th>QR Sala</th><th>Acciones</th></tr>
             </thead>
             <tbody>
               {genetics.map((g: any) => (
@@ -118,7 +119,7 @@ export default async function ConfiguracionPage() {
         ) : (
           <Table>
             <thead>
-              <tr><th>Nombre</th><th>Descripcion</th><th>Estado</th><th>Acciones</th></tr>
+              <tr><th>Nombre</th><th>Descripcion</th><th>Estado</th><th>QR Sala</th><th>Acciones</th></tr>
             </thead>
             <tbody>
               {rooms.map((r: any) => (
@@ -130,6 +131,7 @@ export default async function ConfiguracionPage() {
                       {r.is_active ? "Activa" : "Inactiva"}
                     </span>
                   </td>
+                  <td><RoomQRButton room={r} /></td>
                   <td><EditRoomButton room={r} /></td>
                 </tr>
               ))}
