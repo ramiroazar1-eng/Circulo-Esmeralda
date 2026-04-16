@@ -1,9 +1,15 @@
-﻿content = open("src/app/dispensas/pedidos/OrdersPanel.tsx", "r", encoding="utf-8").read()
+with open("src/app/dashboard/page.tsx", "rb") as f:
+    raw = f.read()
 
-old = 'loadOrders()\n\n    // Realtime\n    const channel = supabase\n      .channel("orders-realtime-" + Math.random())\n      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {\n        console.log("Realtime event:", payload)\n        loadOrders()\n      })\n      .subscribe((status) => {\n        console.log("Realtime status:", status)\n      })\n\n    return () => { supabase.removeChannel(channel) }'
+fixed = raw
+fixed = fixed.replace(b"\xc3\x83\xc2\x82\xc3\x82\xc2\xb7", b"\xc2\xb7")
+fixed = fixed.replace(b"\xc3\x83\xc6\x92\xc3\xa2\xe2\x82\xac\xc5\xa1\xc3\x83\xc2\xa2\xc3\x82\xc2\xb7", b"\xc2\xb7")
+fixed = fixed.replace(b"\xc3\x83\xc6\x92\xc3\xa2\xe2\x82\xac\xe2\x80\x9c\xc3\x83\xe2\x80\x9a\xc3\x82\xc2\xb7", b"\xc2\xb7")
+fixed = fixed.replace(b"\xc3\x83\xc2\xa2\xc3\xa2\xc2\x80\xc2\x94", b"\xe2\x80\x94")
+fixed = fixed.replace(b"\xc3\x83\xe2\x80\x9a\xc3\x82\xc2\xb7", b"\xc2\xb7")
 
-new = 'loadOrders()\n    const interval = setInterval(loadOrders, 3000)\n    return () => clearInterval(interval)'
+with open("src/app/dashboard/page.tsx", "wb") as f:
+    f.write(fixed)
 
-content = content.replace(old, new)
-open("src/app/dispensas/pedidos/OrdersPanel.tsx", "w", encoding="utf-8").write(content)
-print("OK")
+print("Done")
+print("Remaining issues:", fixed.count(b"\xc3\x83"))

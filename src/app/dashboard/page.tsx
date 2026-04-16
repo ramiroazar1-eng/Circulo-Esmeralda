@@ -90,7 +90,7 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {lowStockItems.map((s: any) => (
                     <Link key={s.id} href={`/insumos/${s.id}`} className="text-xs bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5 hover:bg-amber-200 transition-colors">
-                      {s.name} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {s.stock_actual} {s.unit}
+                      {s.name} — {s.stock_actual} {s.unit}
                     </Link>
                   ))}
                 </div>
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {upcomingEvents.map((e: any) => (
                     <span key={e.id} className="text-xs bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5">
-                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {EVENT_LABELS[e.event_type] ?? e.event_type}{e.room ? ` (${e.room.name})` : ""}
+                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} — {EVENT_LABELS[e.event_type] ?? e.event_type}{e.room ? ` (${e.room.name})` : ""}
                     </span>
                   ))}
                 </div>
@@ -180,8 +180,8 @@ export default async function DashboardPage() {
         <Card padding={false}>
           <div className="px-5 pt-5 pb-4 flex items-center justify-between">
             <div>
-              <SectionHeader title={`Ciclo activo ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${cycle.name}`} />
-              <p className="text-xs text-slate-500 -mt-3">Desde {formatDate(cycle.start_date)} Ãƒâ€šÃ‚Â· {lots.length} lote{lots.length !== 1 ? "s" : ""} Ãƒâ€šÃ‚Â· {totalActivePlants} plantas activas</p>
+              <SectionHeader title={`Ciclo activo — ${cycle.name}`} />
+              <p className="text-xs text-slate-500 -mt-3">Desde {formatDate(cycle.start_date)} · {lots.length} lote{lots.length !== 1 ? "s" : ""} · {totalActivePlants} plantas activas</p>
             </div>
             <Link href={`/ciclos/${cycle.id}`} className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 shrink-0">
               Ver ciclo <ArrowRight className="w-3 h-3" />
@@ -226,7 +226,7 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap gap-2">
                   {activePlants.filter((r: any) => r.plant_count > 0).map((r: any) => (
                     <div key={r.room_id} className="bg-[#f5faf3] border border-[#ddecd8] rounded-lg px-3 py-1.5">
-                      <p className="text-xs font-medium text-[#1a2e1a]">{r.room_name} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â <span className="text-[#2d5a27] font-bold">{r.plant_count} plantas</span></p>
+                      <p className="text-xs font-medium text-[#1a2e1a]">{r.room_name} — <span className="text-[#2d5a27] font-bold">{r.plant_count} plantas</span></p>
                       <div className="flex gap-2 mt-0.5">
                         {r.plants_seedling > 0 && <span className="text-xs text-slate-500">{r.plants_seedling} plantines</span>}
                         {r.plants_veg > 0 && <span className="text-xs text-[#2d6a1f]">{r.plants_veg} vege</span>}
@@ -355,7 +355,7 @@ export default async function DashboardPage() {
                 <div key={d.id} className="flex items-center justify-between px-5 py-3">
                   <div className="min-w-0 mr-3">
                     <p className="text-sm font-medium text-slate-900 truncate">{d.patient?.full_name ?? "-"}</p>
-                    <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? "-"} Ãƒâ€šÃ‚Â· {formatDate(d.dispensed_at)}</p>
+                    <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? "-"} · {formatDate(d.dispensed_at)}</p>
                   </div>
                   <span className="text-sm font-medium text-slate-700 tabular-nums">{formatGrams(d.grams)}</span>
                 </div>
@@ -376,7 +376,7 @@ export default async function DashboardPage() {
                 <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${entry.is_incident ? "bg-red-500" : "bg-slate-300"}`} />
                 <div className="min-w-0">
                   <p className="text-sm text-slate-800 truncate">{entry.title}</p>
-                  <p className="text-xs text-slate-400">{formatDate(entry.entry_date)} Ãƒâ€šÃ‚Â· {(entry as any).created_by_profile?.full_name ?? "-"}</p>
+                  <p className="text-xs text-slate-400">{formatDate(entry.entry_date)} · {(entry as any).created_by_profile?.full_name ?? "-"}</p>
                 </div>
               </div>
             ))}
