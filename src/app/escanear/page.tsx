@@ -11,7 +11,12 @@ export default function EscanearPage() {
   const [lastScan, setLastScan] = useState<string | null>(null)
   const router = useRouter()
 
-  function handleRoomScan(value: string) {
+  async function handleRoomScan(value: string) {
+    // Log remoto temporal
+    await fetch("https://ntfy.sh/circulo-esmeralda-debug", {
+      method: "POST",
+      body: `QR escaneado: ${value}`,
+    }).catch(() => {})
     setScanning(false)
     setLastScan(value)
     try {
@@ -80,8 +85,8 @@ export default function EscanearPage() {
           <ScanLine className="w-4 h-4 text-[#2d5a27]" />
           <p className="text-xs font-medium text-[#1a2e1a]">Como funciona</p>
         </div>
-        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneá el QR del paciente y luego el del lote.</p>
-        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneá el QR pegado en la pared de la sala.</p>
+        <p className="text-xs text-[#6b8c65]">Para dispensar: escaneÃ¡ el QR del paciente y luego el del lote.</p>
+        <p className="text-xs text-[#6b8c65] mt-1">Para registrar en sala: escaneÃ¡ el QR pegado en la pared de la sala.</p>
       </div>
     </div>
   )
