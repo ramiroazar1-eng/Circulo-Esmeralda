@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
+﻿import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  const isStaff = ["admin","administrativo","biologo"].includes(profile?.role ?? "")
+  const isStaff = ["admin","administrativo","biologo","director_de_cultivo"].includes(profile?.role ?? "")
 
   const body = await request.json()
   const { order_id, status, lot_id } = body
@@ -110,3 +110,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true })
 }
+

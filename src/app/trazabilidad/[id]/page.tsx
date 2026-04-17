@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 import { BackButton } from "@/components/ui/BackButton"
 import { Card, SectionHeader } from "@/components/ui"
@@ -33,7 +33,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  const canEdit = ["admin","biologo","administrativo"].includes(profile?.role ?? "")
+  const canEdit = ["admin","biologo","director_de_cultivo","administrativo"].includes(profile?.role ?? "")
 
   const [lotRes, geneticsRes, roomsRes, eventsRes, costsRes, supplyMovementsRes, roomHistoryRes] = await Promise.all([
     supabase.from("lots")

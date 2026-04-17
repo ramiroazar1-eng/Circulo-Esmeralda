@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { PageHeader, Card, Table, EmptyState, StatCard } from "@/components/ui"
 import { BackButton } from "@/components/ui/BackButton"
@@ -27,7 +27,7 @@ export default async function TrazabilidadPage() {
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  const canEdit = ["admin","biologo","administrativo"].includes(profile?.role ?? "")
+  const canEdit = ["admin","biologo","director_de_cultivo","administrativo"].includes(profile?.role ?? "")
 
   const { data: lots } = await supabase
     .from("lots")
@@ -80,10 +80,10 @@ export default async function TrazabilidadPage() {
                 return (
                   <tr key={lot.id}>
                     <td className="font-mono font-medium"><a href={`/trazabilidad/${lot.id}`} className="text-[#2d5a27] hover:underline">{lot.lot_code}</a></td>
-                    <td>{lot.genetic?.name ?? "—"}</td>
-                    <td>{lot.room?.name ?? "—"}</td>
-                    <td>{lot.start_date ? formatDate(lot.start_date) : "—"}</td>
-                    <td>{lot.harvest_date ? formatDate(lot.harvest_date) : <span className="text-[#9ab894]">—</span>}</td>
+                    <td>{lot.genetic?.name ?? "â€”"}</td>
+                    <td>{lot.room?.name ?? "â€”"}</td>
+                    <td>{lot.start_date ? formatDate(lot.start_date) : "â€”"}</td>
+                    <td>{lot.harvest_date ? formatDate(lot.harvest_date) : <span className="text-[#9ab894]">â€”</span>}</td>
                     <td>
                       <span className={`text-xs rounded-full px-2.5 py-1 font-bold border ${statusConfig.color}`}>
                         {statusConfig.label}
@@ -113,3 +113,4 @@ export default async function TrazabilidadPage() {
     </div>
   )
 }
+

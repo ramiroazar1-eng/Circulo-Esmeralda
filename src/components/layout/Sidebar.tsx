@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
@@ -16,14 +16,14 @@ const NAV_ITEMS = [
   { href: "/dispensas/pedidos",   label: "Pedidos",            icon: Package,         roles: ["admin","administrativo"] },
   { href: "/dispensas",           label: "Dispensas",          icon: Pill,            roles: ["admin","administrativo"] },
   { href: "/stock",               label: "Control de stock",    icon: Lock,            roles: ["admin","administrativo"] },
-  { href: "/trazabilidad",        label: "Trazabilidad",       icon: FlaskConical,    roles: ["admin","administrativo","biologo"] },
-  { href: "/ciclos",              label: "Ciclos",             icon: FlaskConical,    roles: ["admin","administrativo","biologo"] },
+  { href: "/trazabilidad",        label: "Trazabilidad",       icon: FlaskConical,    roles: ["admin","administrativo","biologo","director_de_cultivo"] },
+  { href: "/ciclos",              label: "Ciclos",             icon: FlaskConical,    roles: ["admin","administrativo","biologo","director_de_cultivo"] },
   { href: "/membresias",          label: "Membresias",         icon: CreditCard,      roles: ["admin"] },
-  { href: "/bitacora",            label: "Bitacora",           icon: BookOpen,        roles: ["admin","biologo"] },
-  { href: "/manuales",            label: "Manuales",           icon: BookOpen,        roles: ["admin","biologo"] },
+  { href: "/bitacora",            label: "Bitacora",           icon: BookOpen,        roles: ["admin","biologo","director_de_cultivo"] },
+  { href: "/manuales",            label: "Manuales",           icon: BookOpen,        roles: ["admin","biologo","director_de_cultivo"] },
   { href: "/documentacion-ong",   label: "Documentacion ONG",  icon: Building2,       roles: ["admin"] },
   { href: "/exportar",            label: "Exportar",           icon: FileDown,        roles: ["admin"] },
-  { href: "/insumos",             label: "Insumos",            icon: Package,         roles: ["admin","biologo"] },
+  { href: "/insumos",             label: "Insumos",            icon: Package,         roles: ["admin","biologo","director_de_cultivo"] },
   { href: "/delivery",            label: "Entregas",           icon: Package,         roles: ["delivery"] },
   { href: "/delivery/historial",  label: "Historial",          icon: FileDown,        roles: ["delivery"] },
 ]
@@ -39,7 +39,7 @@ const BOTTOM_NAV = [
   { href: "/escanear",            label: "Escanear",  icon: ScanLine,        roles: ["admin","administrativo"] },
   { href: "/dispensas/pedidos",  label: "Pedidos",   icon: Package,         roles: ["admin","administrativo"] },
   { href: "/pacientes",          label: "Pacientes", icon: Users,           roles: ["admin","medico"] },
-  { href: "/trazabilidad",       label: "Trazab.",   icon: FlaskConical,    roles: ["admin","administrativo","biologo"] },
+  { href: "/trazabilidad",       label: "Trazab.",   icon: FlaskConical,    roles: ["admin","administrativo","biologo","director_de_cultivo"] },
   { href: "/delivery",           label: "Entregas",  icon: Package,         roles: ["delivery"] },
   { href: "/delivery/historial", label: "Historial", icon: FileDown,        roles: ["delivery"] },
 ]
@@ -154,3 +154,4 @@ export function Sidebar({ role, userName }: { role: UserRole; userName: string }
     </>
   )
 }
+

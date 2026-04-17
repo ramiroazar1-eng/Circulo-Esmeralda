@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 import { BackButton } from "@/components/ui/BackButton"
 import { Card } from "@/components/ui"
@@ -23,7 +23,7 @@ export default async function BiologoPage({ params }: { params: Promise<{ id: st
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  if (!["admin","biologo","administrativo"].includes(profile?.role ?? "")) redirect("/dashboard")
+  if (!["admin","biologo","director_de_cultivo","administrativo"].includes(profile?.role ?? "")) redirect("/dashboard")
 
   const [cycleRes, eventsRes, lotsRes, historyRes] = await Promise.all([
     supabase.from("production_cycles").select("id, name, status, start_date").eq("id", id).single(),
@@ -69,7 +69,7 @@ export default async function BiologoPage({ params }: { params: Promise<{ id: st
       <div className="flex items-start justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-bold text-[#1a2e1a]">Trazabilidad del biologo</h1>
-          <p className="text-sm text-[#6b8c65] mt-0.5">{cycle.name} — desde {formatDate(cycle.start_date)}</p>
+          <p className="text-sm text-[#6b8c65] mt-0.5">{cycle.name} â€” desde {formatDate(cycle.start_date)}</p>
         </div>
         <div className="flex gap-2">
           <Link href={`/ciclos/${id}`} className="text-xs text-[#6b8c65] hover:text-[#1a2e1a] underline">

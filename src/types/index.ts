@@ -1,4 +1,4 @@
-﻿export type UserRole = 'admin' | 'administrativo' | 'medico' | 'biologo' | 'paciente' | 'delivery'
+﻿export type UserRole = 'admin' | 'administrativo' | 'medico' | 'biologo' | 'director_de_cultivo' | 'paciente' | 'delivery'
 export type PatientStatus = 'activo' | 'pendiente_documental' | 'suspendido' | 'inactivo' | 'baja'
 export type ReprocannStatus = 'vigente' | 'proximo_vencimiento' | 'vencido' | 'pendiente_vinculacion'
 export type DocumentStatus = 'faltante' | 'pendiente_revision' | 'aprobado' | 'observado' | 'vencido' | 'pendiente_vinculacion'
@@ -107,3 +107,5 @@ export interface LotCost {
   lot_id: string; lot_code: string; net_grams: number | null
   total_cost: number; cost_per_gram: number | null
 }
+
+

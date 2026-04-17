@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { PageHeader, Card, Table, EmptyState, SectionHeader } from "@/components/ui"
 import { BackButton } from "@/components/ui/BackButton"
@@ -8,7 +8,7 @@ import DeleteUserButton from "./DeleteUserButton"
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador", administrativo: "Administrativo",
-  medico: "Medico", biologo: "Biologo", paciente: "Paciente", delivery: "Delivery"
+  medico: "Medico", biologo: "Director de Cultivo", director_de_cultivo: "Director de Cultivo", paciente: "Paciente", delivery: "Delivery"
 }
 
 export default async function UsuariosPage() {
@@ -68,4 +68,6 @@ export default async function UsuariosPage() {
     </div>
   )
 }
+
+
 

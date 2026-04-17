@@ -36,7 +36,7 @@ export const LOG_CATEGORY_LABELS: Record<LogCategory, string> = {
   documental: 'Documental', administrativo: 'Administrativo', otro: 'Otro'
 }
 export const ROLE_LABELS: Record<UserRole, string> = {
-  admin: 'Administrador', administrativo: 'Administrativo', medico: 'Médico', biologo: 'Biólogo', paciente: 'Paciente', delivery: 'Delivery'
+  admin: 'Administrador', administrativo: 'Administrativo', medico: 'Médico', biologo: 'Director de Cultivo', director_de_cultivo: 'Director de Cultivo', paciente: 'Paciente', delivery: 'Delivery'
 }
 export const MONTH_LABELS: Record<number, string> = {
   1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio',
@@ -70,6 +70,8 @@ export function formatFileSize(bytes: number | null | undefined): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
+
+
 
 
 

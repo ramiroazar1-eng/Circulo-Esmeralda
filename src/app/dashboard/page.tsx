@@ -1,4 +1,4 @@
-import PlanReviewButtons from "./PlanReviewButtons"
+﻿import PlanReviewButtons from "./PlanReviewButtons"
 import CycleRoomPanel from "./CycleRoomPanel"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   const role = profile?.role ?? ""
   const isAdmin = role === "admin"
-  const canSeeCultivo = ["admin","administrativo","biologo"].includes(role)
+  const canSeeCultivo = ["admin","administrativo","biologo","director_de_cultivo"].includes(role)
 
   const [
     complianceRaw, alertsRaw, orgDocs, membershipsRaw,
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
     supabase.from("stock_positions").select("available_grams"),
     supabase.from("plan_requests").select("*, patient:patients(full_name), current_plan:membership_plans!plan_requests_current_plan_id_fkey(name), requested_plan:membership_plans!plan_requests_requested_plan_id_fkey(name)").eq("status", "pendiente").order("created_at", { ascending: false }).limit(10),
     supabase.from("daily_log_entries").select("id, entry_date, title, category, is_incident, created_by_profile:profiles(full_name)").order("created_at", { ascending: false }).limit(4),
-    supabase.from("production_cycles").select("id, name, start_date, lots(id, lot_code, status, seedling_date, plant_count, genetic:genetics(name), room:rooms(name))").eq("status", "activo").order("start_date", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("production_cycles").select("id, name, start_date, cycle_type, lots(id, lot_code, status, seedling_date, plant_count, genetic:genetics(name), room:rooms(name))").eq("status", "activo").order("start_date", { ascending: false }),
     supabase.from("planned_events").select("id, event_type, planned_date, notes, lot:lots(lot_code), room:rooms(name)").eq("status", "pendiente").gte("planned_date", new Date().toISOString().split("T")[0]).lte("planned_date", new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]).order("planned_date", { ascending: true }).limit(5),
     supabase.from("v_active_plants").select("room_id, room_name, plant_count, plants_veg, plants_flower, plants_seedling"),
     supabase.from("v_supply_stock").select("id, name, unit, stock_actual, last_unit_cost").eq("is_active", true).gt("stock_actual", 0),
@@ -43,7 +43,8 @@ export default async function DashboardPage() {
   const alerts = (alertsRaw.data ?? []) as PatientAlert[]
   const memberships = (membershipsRaw.data ?? []) as CurrentMembership[]
   const totalStock = (stockData.data ?? []).reduce((acc, s) => acc + (s.available_grams ?? 0), 0)
-  const cycle = activeCycle.data as any
+  const activeCycles = (activeCycle.data ?? []) as any[]
+  const cycle = activeCycles.find((c: any) => c.cycle_type === "productivo") ?? activeCycles[0] ?? null
   const lots = (cycle?.lots ?? []) as any[]
   const upcomingEvents = (plannedEvents.data ?? []) as any[]
   const dashProducts = (dashProductsRes?.data ?? []) as any[]
@@ -94,7 +95,7 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {lowStockItems.map((s: any) => (
                     <Link key={s.id} href={`/insumos/${s.id}`} className="text-xs bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5 hover:bg-amber-200 transition-colors">
-                      {s.name} â€” {s.stock_actual} {s.unit}
+                      {s.name} Ã¢â‚¬â€ {s.stock_actual} {s.unit}
                     </Link>
                   ))}
                 </div>
@@ -109,7 +110,7 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {upcomingEvents.map((e: any) => (
                     <span key={e.id} className="text-xs bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5">
-                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} â€” {EVENT_LABELS[e.event_type] ?? e.event_type}{e.room ? ` (${e.room.name})` : ""}
+                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} Ã¢â‚¬â€ {EVENT_LABELS[e.event_type] ?? e.event_type}{e.room ? ` (${e.room.name})` : ""}
                     </span>
                   ))}
                 </div>
@@ -184,8 +185,8 @@ export default async function DashboardPage() {
         <Card padding={false}>
           <div className="px-5 pt-5 pb-4 flex items-center justify-between">
             <div>
-              <SectionHeader title={`Ciclo activo — ${cycle.name}`} />
-              <p className="text-xs text-slate-500 -mt-3">Desde {formatDate(cycle.start_date)} · {lots.length} lote{lots.length !== 1 ? "s" : ""} · {totalActivePlants} plantas activas</p>
+              <SectionHeader title={`Ciclo activo â€” ${cycle.name}`} />
+              <p className="text-xs text-slate-500 -mt-3">Desde {formatDate(cycle.start_date)} Â· {lots.length} lote{lots.length !== 1 ? "s" : ""} Â· {totalActivePlants} plantas activas</p>
             </div>
             <Link href={`/ciclos/${cycle.id}`} className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 shrink-0">
               Ver ciclo <ArrowRight className="w-3 h-3" />
@@ -316,7 +317,7 @@ export default async function DashboardPage() {
                 <div key={d.id} className="flex items-center justify-between px-5 py-3">
                   <div className="min-w-0 mr-3">
                     <p className="text-sm font-medium text-slate-900 truncate">{d.patient?.full_name ?? "-"}</p>
-                    <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? "-"} Â· {formatDate(d.dispensed_at)}</p>
+                    <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? "-"} Ã‚Â· {formatDate(d.dispensed_at)}</p>
                   </div>
                   <span className="text-sm font-medium text-slate-700 tabular-nums">{formatGrams(d.grams)}</span>
                 </div>
@@ -337,7 +338,7 @@ export default async function DashboardPage() {
                 <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${entry.is_incident ? "bg-red-500" : "bg-slate-300"}`} />
                 <div className="min-w-0">
                   <p className="text-sm text-slate-800 truncate">{entry.title}</p>
-                  <p className="text-xs text-slate-400">{formatDate(entry.entry_date)} Â· {(entry as any).created_by_profile?.full_name ?? "-"}</p>
+                  <p className="text-xs text-slate-400">{formatDate(entry.entry_date)} Ã‚Â· {(entry as any).created_by_profile?.full_name ?? "-"}</p>
                 </div>
               </div>
             ))}
@@ -373,3 +374,5 @@ export default async function DashboardPage() {
     </div>
   )
 }
+
+

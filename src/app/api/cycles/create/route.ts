@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
+﻿import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
@@ -7,27 +7,23 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
   const body = await request.json()
-  const { notes } = body
+  const { notes, cycle_type = "productivo" } = body
+
+  if (!["productivo", "reproductivo"].includes(cycle_type)) {
+    return NextResponse.json({ error: "Tipo de ciclo invalido" }, { status: 400 })
+  }
 
   const service = await createServiceClient()
-
   const now = new Date()
   const start_date = now.toISOString().split("T")[0]
-
-  // Usar secuencia para numero correlativo
   const { data: cycleNumber } = await service.rpc("nextval_cycle_number")
   const year = now.getFullYear()
-  const name = `Ciclo ${String(cycleNumber).padStart(2, "0")}/${year}`
+  const prefix = cycle_type === "reproductivo" ? "Ciclo Reproductivo" : "Ciclo"
+  const name = `${prefix} ${String(cycleNumber).padStart(2, "0")}/${year}`
 
   const { data, error } = await service
     .from("production_cycles")
-    .insert({
-      name,
-      start_date,
-      status: "activo",
-      notes: notes || null,
-      created_by: user.id
-    })
+    .insert({ name, start_date, status: "activo", cycle_type, notes: notes || null, created_by: user.id })
     .select()
     .single()
 

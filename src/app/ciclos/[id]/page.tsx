@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 import { BackButton } from "@/components/ui/BackButton"
 import { Card, SectionHeader } from "@/components/ui"
@@ -45,7 +45,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   const role = profile?.role ?? ""
   const isAdmin = role === "admin"
-  const canEdit = ["admin","biologo","administrativo"].includes(role)
+  const canEdit = ["admin","biologo","director_de_cultivo","director_de_cultivo","administrativo"].includes(role)
 
   const [cycleRes, expensesRes, eventsRes, roomsRes, closuresRes, productsRes] = await Promise.all([
     supabase.from("production_cycles")
@@ -144,18 +144,18 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           <Link href={`/ciclos/${id}/timeline`} className="inline-flex items-center gap-1.5 text-xs bg-white border border-[#ddecd8] hover:border-[#4d8a3d] text-[#2d5a27] font-medium rounded-lg px-3 py-2 transition-colors">
             Ver linea de tiempo
           </Link>
-          {["admin","biologo","administrativo"].includes(role) && (
+          {["admin","biologo","director_de_cultivo","director_de_cultivo","administrativo"].includes(role) && (
             <Link href={`/ciclos/${id}/biologo`} className="inline-flex items-center gap-1.5 text-xs bg-[#edf7e8] border border-[#b8daa8] hover:border-[#4d8a3d] text-[#2d5a27] font-medium rounded-lg px-3 py-2 transition-colors">
               Trazabilidad biologo
             </Link>
           )}
           {canEdit && <PeriodPdfButton cycleId={id} />}
-          {cycle.status === "activo" && ["admin","biologo","administrativo"].includes(role) && (
+          {cycle.status === "activo" && ["admin","biologo","director_de_cultivo","director_de_cultivo","administrativo"].includes(role) && (
             <DailyClosureModal cycleId={id} closures={closures} />
           )}
-          {cycle.status === "activo" && isAdmin && <CloseCycleButton cycleId={id} cycleName={cycle.name} />}
+          {cycle.status === "activo" && isAdmin && <CloseCycleButton cycleId={id} cycleName={cycle.name} cycleType={cycle.cycle_type ?? "productivo"} />}
           {isAdmin && cycle.status === "activo" && <NewExpenseModal cycleId={id} />}
-          {["admin","biologo"].includes(role) && cycle.status === "activo" && (
+          {["admin","biologo","director_de_cultivo","director_de_cultivo"].includes(role) && cycle.status === "activo" && (
             <NewEventModal cycleId={id} lots={lotsForPanel} rooms={rooms} />
           )}
         </div>
@@ -194,7 +194,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           lots={lotsForPanel}
           products={products}
           rooms={rooms}
-          canManageTemplates={["admin","biologo"].includes(role)}
+          canManageTemplates={["admin","biologo","director_de_cultivo","director_de_cultivo"].includes(role)}
         />
       )}
 
@@ -210,8 +210,8 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
                   <p className="text-sm font-bold text-[#e8f5e3]">{sala.room_name}</p>
                   <p className="text-xs text-[#7a9e74] mt-0.5">
                     {sala.lots.length} lote{sala.lots.length !== 1 ? "s" : ""}
-                    {salaPlants > 0 && ` · ${salaPlants} plantas`}
-                    {salaStatus.length > 0 && ` · ${salaStatus.join(", ")}`}
+                    {salaPlants > 0 && ` Â· ${salaPlants} plantas`}
+                    {salaStatus.length > 0 && ` Â· ${salaStatus.join(", ")}`}
                   </p>
                 </div>
               </div>
@@ -227,8 +227,8 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
                           <p className="font-mono font-medium text-[#1a2e1a]">{lot.lot_code}</p>
                           <p className="text-xs text-[#6b8c65]">
                             {lot.genetic?.name ?? "Sin genetica"}
-                            {lot.plant_count && ` · ${lot.plant_count} plantas`}
-                            {daysInCycle && ` · ${daysInCycle} dias`}
+                            {lot.plant_count && ` Â· ${lot.plant_count} plantas`}
+                            {daysInCycle && ` Â· ${daysInCycle} dias`}
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -353,3 +353,5 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
     </div>
   )
 }
+
+

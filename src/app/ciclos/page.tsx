@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { PageHeader, Card, EmptyState } from "@/components/ui"
 import { BackButton } from "@/components/ui/BackButton"
@@ -12,7 +12,7 @@ export default async function CiclosPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  const canEdit = ["admin","biologo","administrativo"].includes(profile?.role ?? "")
+  const canEdit = ["admin","biologo","director_de_cultivo","administrativo"].includes(profile?.role ?? "")
   const { data: cycles } = await supabase
     .from("production_cycles")
     .select("*, lots(id, lot_code, status, net_grams, gross_grams, seedling_date, harvest_date, curing_start_date, curing_days, genetic:genetics(name))")
@@ -53,7 +53,7 @@ export default async function CiclosPage() {
                         </span>
                       </div>
                       <p className="text-xs text-[#9ab894]">
-                        {formatDate(cycle.start_date)}{cycle.end_date && ` â†’ ${formatDate(cycle.end_date)}`}{durationDays && ` Â· ${durationDays} dias`}
+                        {formatDate(cycle.start_date)}{cycle.end_date && ` Ã¢â€ â€™ ${formatDate(cycle.end_date)}`}{durationDays && ` Ã‚Â· ${durationDays} dias`}
                       </p>
                     </div>
                     <div className="text-right">
@@ -71,7 +71,7 @@ export default async function CiclosPage() {
                       <p className="text-[10px] text-[#9ab894] uppercase tracking-wide">Finalizados</p>
                     </div>
                     <div className="bg-[#f5faf3] rounded-lg p-3 text-center">
-                      <p className="text-lg font-black text-[#1a2e1a]">{durationDays ?? "â€”"}</p>
+                      <p className="text-lg font-black text-[#1a2e1a]">{durationDays ?? "Ã¢â‚¬â€"}</p>
                       <p className="text-[10px] text-[#9ab894] uppercase tracking-wide">Dias</p>
                     </div>
                   </div>

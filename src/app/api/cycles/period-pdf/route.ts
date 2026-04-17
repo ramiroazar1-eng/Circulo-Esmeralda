@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
+﻿import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function GET(request: Request) {
@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
   const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single()
-  if (!["admin","administrativo","biologo"].includes(profile?.role ?? ""))
+  if (!["admin","administrativo","biologo","director_de_cultivo"].includes(profile?.role ?? ""))
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
@@ -115,7 +115,7 @@ export async function GET(request: Request) {
 <div class="room-section">
   <div class="room-header">
     <span class="room-name">${esc(room.name)}</span>
-    ${room.square_meters ? `<span class="room-sqm">${room.square_meters} m²</span>` : ""}
+    ${room.square_meters ? `<span class="room-sqm">${room.square_meters} mÂ²</span>` : ""}
   </div>
 
   ${sortedDates.map(date => {
@@ -133,7 +133,7 @@ export async function GET(request: Request) {
           <td class="mono">${esc(ev.lot?.lot_code)}</td>
           <td>${esc(ev.created_by_profile?.full_name)}</td>
           <td>${esc(ev.notes)}</td>
-          <td class="lock-col">${ev.is_locked ? "✓" : ""}</td>
+          <td class="lock-col">${ev.is_locked ? "âœ“" : ""}</td>
         </tr>`).join("")}
       </tbody>
     </table>` : ""}

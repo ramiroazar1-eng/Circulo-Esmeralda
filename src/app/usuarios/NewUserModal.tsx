@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, X, Mail } from "lucide-react"
@@ -58,7 +58,7 @@ export default function NewUserModal() {
                 <option value="">Selecciona un rol...</option>
                 <option value="administrativo">Administrativo</option>
                 <option value="medico">Medico</option>
-                <option value="biologo">Biologo</option>
+                <option value="director_de_cultivo">Director de Cultivo</option>
                 <option value="paciente">Paciente</option>
                 <option value="delivery">Delivery</option>
                 <option value="admin">Administrador</option>
@@ -78,7 +78,7 @@ export default function NewUserModal() {
                 <label className="label-ong">Vincular con ficha de paciente *</label>
                 <select name="patient_id" required className="input-ong">
                   <option value="">Selecciona el paciente...</option>
-                  {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} â€” DNI {p.dni}</option>)}
+                  {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} Ã¢â‚¬â€ DNI {p.dni}</option>)}
                 </select>
               </div>
             )}
@@ -92,4 +92,7 @@ export default function NewUserModal() {
     </>
   )
 }
+
+
+
 

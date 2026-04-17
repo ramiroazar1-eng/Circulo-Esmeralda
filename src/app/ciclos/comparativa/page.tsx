@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { BackButton } from "@/components/ui/BackButton"
 import { formatGrams } from "@/lib/utils"
@@ -10,7 +10,7 @@ export default async function ComparativaPage() {
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  if (!["admin","administrativo","biologo"].includes(profile?.role ?? "")) redirect("/dashboard")
+  if (!["admin","administrativo","biologo","director_de_cultivo"].includes(profile?.role ?? "")) redirect("/dashboard")
 
   const { data: cycles } = await supabase
     .from("production_cycles")

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 import { BackButton } from "@/components/ui/BackButton"
 import { Card, SectionHeader, StatCard } from "@/components/ui"
@@ -24,7 +24,7 @@ export default async function SupplyProductDetailPage({ params }: { params: Prom
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  if (!["admin","administrativo","biologo"].includes(profile?.role ?? "")) redirect("/dashboard")
+  if (!["admin","administrativo","biologo","director_de_cultivo"].includes(profile?.role ?? "")) redirect("/dashboard")
 
   const [productRes, movementsRes] = await Promise.all([
     supabase.from("v_supply_stock").select("*").eq("id", id).single(),

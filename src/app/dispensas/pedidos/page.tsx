@@ -10,7 +10,7 @@ export default async function PedidosPage() {
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  if (!["admin","administrativo","biologo"].includes(profile?.role ?? "")) redirect("/dashboard")
+  if (!["admin","administrativo","biologo","director_de_cultivo"].includes(profile?.role ?? "")) redirect("/dashboard")
 
   const { data: lots } = await supabase
     .from("v_stock_available")
@@ -28,3 +28,4 @@ export default async function PedidosPage() {
     </div>
   )
 }
+

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 import { BackButton } from "@/components/ui/BackButton"
 import { formatDate } from "@/lib/utils"
@@ -13,7 +13,7 @@ export default async function CycleTimelinePage({ params }: { params: Promise<{ 
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   const role = profile?.role ?? ""
-  const canPlan = ["admin","biologo"].includes(role)
+  const canPlan = ["admin","biologo","director_de_cultivo"].includes(role)
 
   const [cycleRes, roomsRes, eventsRes, plannedRes, lotsRes] = await Promise.all([
     supabase.from("production_cycles").select("id, name, status, start_date").eq("id", id).single(),

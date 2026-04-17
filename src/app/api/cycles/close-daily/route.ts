@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  if (!["admin","biologo","administrativo"].includes(profile?.role ?? ""))
+  if (!["admin","biologo","director_de_cultivo","administrativo"].includes(profile?.role ?? ""))
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
 
   const { cycle_id, closure_date, notes } = await request.json()
@@ -69,3 +69,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true, closure_id: closure.id, events_count: events.length, events_hash: eventsHash })
 }
+
