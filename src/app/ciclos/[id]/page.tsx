@@ -9,6 +9,7 @@ import NewEventModal from "./NewEventModal"
 import CloseCycleButton from "./CloseCycleButton"
 import DailyClosureModal from "./DailyClosureModal"
 import QuickActionsPanel from "./QuickActionsPanel"
+import CloneLotButton from "@/app/trazabilidad/CloneLotButton"
 import PeriodPdfButton from "./PeriodPdfButton"
 
 const ETAPAS = [
@@ -45,7 +46,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   const role = profile?.role ?? ""
   const isAdmin = role === "admin"
-  const canEdit = ["admin","biologo","director_de_cultivo","director_de_cultivo","administrativo"].includes(role)
+  const canEdit = ["admin","biologo","director_de_cultivo","administrativo"].includes(role)
 
   const [cycleRes, expensesRes, eventsRes, roomsRes, closuresRes, productsRes] = await Promise.all([
     supabase.from("production_cycles")
@@ -116,6 +117,20 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   }
   const salasList = Object.values(lotsBySala).sort((a, b) => a.room_name.localeCompare(b.room_name))
 
+  const isReproductivo = cycle.cycle_type === "reproductivo"
+
+  // Agrupar madres por genetica para ciclo reproductivo
+  const madresByGenetic: Record<string, { name: string; lots: any[]; total_plants: number }> = {}
+  if (isReproductivo) {
+    for (const lot of lots.filter((l: any) => ["plantines","vegetativo","floracion"].includes(l.status))) {
+      const name = lot.genetic?.name ?? "Sin genetica"
+      if (!madresByGenetic[name]) madresByGenetic[name] = { name, lots: [], total_plants: 0 }
+      madresByGenetic[name].lots.push(lot)
+      madresByGenetic[name].total_plants += lot.plant_count ?? 0
+    }
+  }
+  const madresList = Object.values(madresByGenetic)
+
   const lotsForPanel = lots.map((l: any) => ({
     id: l.id,
     lot_code: l.lot_code,
@@ -144,18 +159,18 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           <Link href={`/ciclos/${id}/timeline`} className="inline-flex items-center gap-1.5 text-xs bg-white border border-[#ddecd8] hover:border-[#4d8a3d] text-[#2d5a27] font-medium rounded-lg px-3 py-2 transition-colors">
             Ver linea de tiempo
           </Link>
-          {["admin","biologo","director_de_cultivo","director_de_cultivo","administrativo"].includes(role) && (
+          {["admin","biologo","director_de_cultivo","administrativo"].includes(role) && (
             <Link href={`/ciclos/${id}/biologo`} className="inline-flex items-center gap-1.5 text-xs bg-[#edf7e8] border border-[#b8daa8] hover:border-[#4d8a3d] text-[#2d5a27] font-medium rounded-lg px-3 py-2 transition-colors">
               Trazabilidad director de cultivo
             </Link>
           )}
           {canEdit && <PeriodPdfButton cycleId={id} />}
-          {cycle.status === "activo" && ["admin","biologo","director_de_cultivo","director_de_cultivo","administrativo"].includes(role) && (
+          {cycle.status === "activo" && ["admin","biologo","director_de_cultivo","administrativo"].includes(role) && (
             <DailyClosureModal cycleId={id} closures={closures} />
           )}
           {cycle.status === "activo" && isAdmin && <CloseCycleButton cycleId={id} cycleName={cycle.name} cycleType={cycle.cycle_type ?? "productivo"} />}
           {isAdmin && cycle.status === "activo" && <NewExpenseModal cycleId={id} />}
-          {["admin","biologo","director_de_cultivo","director_de_cultivo"].includes(role) && cycle.status === "activo" && (
+          {["admin","biologo","director_de_cultivo"].includes(role) && cycle.status === "activo" && (
             <NewEventModal cycleId={id} lots={lotsForPanel} rooms={rooms} />
           )}
         </div>
@@ -194,8 +209,53 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           lots={lotsForPanel}
           products={products}
           rooms={rooms}
-          canManageTemplates={["admin","biologo","director_de_cultivo","director_de_cultivo"].includes(role)}
+          canManageTemplates={["admin","biologo","director_de_cultivo"].includes(role)}
         />
+      )}
+
+      {/* Seccion especial para ciclo reproductivo */}
+      {isReproductivo && madresList.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-[#1a2e1a]">Madres por genetica</h2>
+            <p className="text-xs text-[#9ab894]">{totalPlants} plantas totales</p>
+          </div>
+          {madresList.map((gen: any) => (
+            <div key={gen.name} className="bg-white border border-[#ddecd8] rounded-xl overflow-hidden">
+              <div className="px-5 py-3 bg-[#0f1f12] flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#e8f5e3]">{gen.name}</p>
+                  <p className="text-xs text-[#7a9e74] mt-0.5">{gen.lots.length} lote{gen.lots.length !== 1 ? "s" : ""} · {gen.total_plants} plantas</p>
+                </div>
+                {canEdit && cycle.status === "activo" && (
+                  <CloneLotButton
+                    lotId={gen.lots[0].id}
+                    lotCode={gen.lots[0].lot_code}
+                    geneticName={gen.name}
+                    rooms={rooms}
+                  />
+                )}
+              </div>
+              <div className="divide-y divide-[#f5faf3]">
+                {gen.lots.map((lot: any) => (
+                  <Link key={lot.id} href={`/trazabilidad/${lot.id}`}>
+                    <div className="flex items-center justify-between px-5 py-3 hover:bg-[#f5faf3] transition-colors cursor-pointer">
+                      <div>
+                        <p className="font-mono font-medium text-[#1a2e1a]">{lot.lot_code}</p>
+                        <p className="text-xs text-[#6b8c65]">
+                          {lot.plant_count ?? 0} plantas · {lot.room?.name ?? "Sin sala"}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-[#edf7e8] text-[#2d6a1f] border-[#b8daa8]">
+                        {lot.status}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       <div className="space-y-3">
@@ -353,6 +413,11 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
     </div>
   )
 }
+
+
+
+
+
 
 
 
