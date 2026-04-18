@@ -1,378 +1,467 @@
-﻿import PlanReviewButtons from "./PlanReviewButtons"
-import CycleRoomPanel from "./CycleRoomPanel"
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import Link from "next/link"
-import { Users, AlertTriangle, CheckCircle2, Clock, FileX, Building2, Pill, CreditCard, ArrowRight, FlaskConical, AlertCircle, Sprout, ShoppingBag } from "lucide-react"
-import { Card, SectionHeader, ComplianceBadge, PaymentStatusBadge, EmptyState } from "@/components/ui"
-import { formatDate, formatGrams, daysUntil } from "@/lib/utils"
-import type { PatientAlert, ComplianceSummary, CurrentMembership } from "@/types"
+'use client'
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/login")
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { formatCurrency, formatCurrencySigned, formatDate, daysUntil, urgencyFromDays } from '@/lib/utils/format'
+import Link from 'next/link'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react'
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  const role = profile?.role ?? ""
-  const isAdmin = role === "admin"
-  const canSeeCultivo = ["admin","administrativo","biologo","director_de_cultivo"].includes(role)
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
-  const [
-    complianceRaw, alertsRaw, orgDocs, membershipsRaw,
-    recentDispenses, stockData, planRequests, recentLog,
-    activeCycle, plannedEvents, activePlantsRes, dashProductsRes, pendingOrdersRes
-  ] = await Promise.all([
-    supabase.from("v_compliance_summary").select("*").single(),
-    supabase.from("v_patient_alerts").select("*").limit(10),
-    supabase.from("org_documents").select("id, name, status, is_mandatory").in("status", ["faltante","pendiente_revision","observado"]).order("is_mandatory", { ascending: false }).limit(8),
-    supabase.from("v_current_memberships").select("*").in("payment_status", ["pendiente","vencido"]).limit(8),
-    supabase.from("dispenses").select("id, dispensed_at, grams, patient:patients(full_name), lot:lots(lot_code)").order("dispensed_at", { ascending: false }).limit(5),
-    supabase.from("stock_positions").select("available_grams"),
-    supabase.from("plan_requests").select("*, patient:patients(full_name), current_plan:membership_plans!plan_requests_current_plan_id_fkey(name), requested_plan:membership_plans!plan_requests_requested_plan_id_fkey(name)").eq("status", "pendiente").order("created_at", { ascending: false }).limit(10),
-    supabase.from("daily_log_entries").select("id, entry_date, title, category, is_incident, created_by_profile:profiles(full_name)").order("created_at", { ascending: false }).limit(4),
-    supabase.from("production_cycles").select("id, name, start_date, cycle_type, lots(id, lot_code, status, seedling_date, plant_count, genetic:genetics(name), room:rooms(name))").eq("status", "activo").order("start_date", { ascending: false }),
-    supabase.from("planned_events").select("id, event_type, planned_date, notes, lot:lots(lot_code), room:rooms(name)").eq("status", "pendiente").gte("planned_date", new Date().toISOString().split("T")[0]).lte("planned_date", new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]).order("planned_date", { ascending: true }).limit(5),
-    supabase.from("v_active_plants").select("room_id, room_name, plant_count, plants_veg, plants_flower, plants_seedling"),
-    supabase.from("v_supply_stock").select("id, name, unit, stock_actual, last_unit_cost").eq("is_active", true).gt("stock_actual", 0),
-    supabase.from("v_supply_stock").select("id, name, unit, stock_actual, last_unit_cost").eq("is_active", true).gt("stock_actual", 0),
-    supabase.from("orders").select("id, status, patient:patients(full_name), created_at").in("status", ["nuevo","aprobado","en_preparacion","empaquetado"]).order("created_at", { ascending: false }).limit(8),
-  ])
+function fmtPct(val: number | null) {
+  if (val === null || isNaN(val) || !isFinite(val)) return '—'
+  return (val * 100).toFixed(2) + '%'
+}
 
-  const compliance = complianceRaw.data as ComplianceSummary | null
-  const alerts = (alertsRaw.data ?? []) as PatientAlert[]
-  const memberships = (membershipsRaw.data ?? []) as CurrentMembership[]
-  const totalStock = (stockData.data ?? []).reduce((acc, s) => acc + (s.available_grams ?? 0), 0)
-  const activeCycles = (activeCycle.data ?? []) as any[]
-  const cycle = activeCycles.find((c: any) => c.cycle_type === "productivo") ?? activeCycles[0] ?? null
-  const lots = (cycle?.lots ?? []) as any[]
-  const upcomingEvents = (plannedEvents.data ?? []) as any[]
-  const dashProducts = (dashProductsRes?.data ?? []) as any[]
-  const activePlants = (activePlantsRes?.data ?? []) as any[]
-  const totalActivePlants = activePlants.reduce((acc: number, r: any) => acc + (r.plant_count ?? 0), 0)
-  const totalVeg = activePlants.reduce((acc: number, r: any) => acc + (r.plants_veg ?? 0), 0)
-  const totalFlower = activePlants.reduce((acc: number, r: any) => acc + (r.plants_flower ?? 0), 0)
-  const totalSeedling = activePlants.reduce((acc: number, r: any) => acc + (r.plants_seedling ?? 0), 0)
-  const pendingOrders = (pendingOrdersRes?.data ?? []) as any[]
+export default function DashboardPage() {
+  const supabase = createClient()
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
 
-  const { data: supplyStockData } = await supabase.from("v_supply_stock").select("id, name, unit, stock_actual, stock_alert_threshold").eq("is_active", true)
-  const lowStockItems = (supplyStockData ?? []).filter((s: any) => s.stock_alert_threshold > 0 && s.stock_actual <= s.stock_alert_threshold)
+  const [properties, setProperties] = useState<any[]>([])
+  const [records, setRecords] = useState<any[]>([])
+  const [allRecords, setAllRecords] = useState<any[]>([])
+  const [mortgages, setMortgages] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [recurring, setRecurring] = useState<any[]>([])
+  const [contributions, setContributions] = useState<any[]>([])
+  const [acquisition, setAcquisition] = useState<any[]>([])
+  const [entityExpenses, setEntityExpenses] = useState<any[]>([])
+  const [extraordinaryItems, setExtraordinaryItems] = useState<any[]>([])
+  const [entities, setEntities] = useState<any[]>([])
+  const [pnlYear, setPnlYear] = useState(year)
+  const [pnlRecords, setPnlRecords] = useState<any[]>([])
+  const [pnlEntityExp, setPnlEntityExp] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [lastClose, setLastClose] = useState<{month: number; year: number} | null>(null)
+  const [showExtraordinary, setShowExtraordinary] = useState(false)
+  const [showDesglose, setShowDesglose] = useState(false)
 
-  const EVENT_LABELS: Record<string, string> = {
-    poda: "Poda", nutrientes: "Nutrientes", tratamiento: "Tratamiento",
-    transplante: "Transplante", riego: "Riego", defoliacion: "Defoliacion",
-    traslado: "Traslado", incidente: "Incidente", descarte: "Descarte", otro: "Otro"
-  }
+  const pnlYears = Array.from({ length: year - 2024 + 1 }, (_, i) => 2024 + i)
 
-  const LOT_STATUS: Record<string, string> = {
-    plantines: "Plantines", vegetativo: "Vegetativo", floracion: "Floracion",
-    cosecha: "Cosecha", secado: "Secado", curado: "Curado",
-    finalizado: "Finalizado", descartado: "Descartado"
-  }
+  useEffect(() => {
+    Promise.all([
+      supabase.from('properties').select('*, entity:entities(name)').neq('status', 'sold'),
+      supabase.from('monthly_records').select('*').eq('year', year).eq('month', month),
+      supabase.from('monthly_records').select('*').eq('year', year).eq('status', 'locked').order('month'),
+      supabase.from('mortgages').select('current_balance, property_id').eq('is_active', true),
+      supabase.from('tasks').select('*, property:properties(name)').in('status', ['open','in_progress']).order('due_date', { ascending: true }).limit(5),
+      supabase.from('property_recurring_values').select('*'),
+      supabase.from('capital_contributions').select('*'),
+      supabase.from('acquisition_costs').select('*'),
+      supabase.from('entity_expenses').select('*').eq('year', year),
+      supabase.from('extraordinary_items').select('*, property:properties(name)').eq('year', year).order('month', { ascending: false }),
+      supabase.from('entities').select('id, name'),
+      supabase.from('monthly_records').select('year, month').eq('status', 'locked').order('year', { ascending: false }).order('month', { ascending: false }).limit(1),
+    ]).then((results: any[]) => {
+      setProperties(results[0].data ?? [])
+      setRecords(results[1].data ?? [])
+      setAllRecords(results[2].data ?? [])
+      setMortgages(results[3].data ?? [])
+      setTasks(results[4].data ?? [])
+      setRecurring(results[5].data ?? [])
+      setContributions(results[6].data ?? [])
+      setAcquisition(results[7].data ?? [])
+      setEntityExpenses(results[8].data ?? [])
+      setExtraordinaryItems(results[9].data ?? [])
+      setEntities(results[10].data ?? [])
+      const lc = results[11].data?.[0]
+      if (lc) setLastClose({ month: lc.month, year: lc.year })
+      setPnlRecords(results[2].data ?? [])
+      setPnlEntityExp(results[8].data ?? [])
+      setLoading(false)
+    })
+  }, [])
 
-  const ORDER_STATUS: Record<string, { label: string; color: string }> = {
-    nuevo:          { label: "Nuevo",          color: "bg-blue-50 text-blue-700 border-blue-200" },
-    aprobado:       { label: "Aprobado",        color: "bg-green-50 text-green-700 border-green-200" },
-    en_preparacion: { label: "En preparacion",  color: "bg-amber-50 text-amber-700 border-amber-200" },
-    empaquetado:    { label: "Listo",           color: "bg-purple-50 text-purple-700 border-purple-200" },
-  }
+  useEffect(() => {
+    if (pnlYear === year) { setPnlRecords(allRecords); setPnlEntityExp(entityExpenses); return }
+    Promise.all([
+      supabase.from('monthly_records').select('*').eq('year', pnlYear).eq('status', 'locked').order('month'),
+      supabase.from('entity_expenses').select('*').eq('year', pnlYear),
+    ]).then(([{ data: r }, { data: e }]: any[]) => { setPnlRecords(r ?? []); setPnlEntityExp(e ?? []) })
+  }, [pnlYear])
+
+  // Calcs
+  const grossRent = records.reduce((s: number, r: any) => s + (r.gross_rent ?? 0), 0)
+  const totalExpenses = records.reduce((s: number, r: any) => s + (r.total_expenses ?? 0), 0)
+  const currentMonthEntityExp = entityExpenses.filter((e: any) => e.month === month).reduce((s: number, e: any) => s + (e.amount ?? 0), 0)
+  const netCashflow = grossRent - totalExpenses - currentMonthEntityExp
+  const totalDebt = mortgages.reduce((s: number, m: any) => s + (m.current_balance ?? 0), 0)
+  const occupied = properties.filter((p: any) => p.status === 'occupied').length
+  const activePropCount = properties.length || 1
+  const entityName = entities[0]?.name ?? 'Portfolio'
+
+  const propMetrics = properties.map((prop: any) => {
+    const rec = recurring.find((r: any) => r.property_id === prop.id)
+    const acqCosts = acquisition.filter((a: any) => a.property_id === prop.id)
+    const propMortgage = mortgages.find((m: any) => m.property_id === prop.id)
+    const monthlyRent = rec?.monthly_rent ?? prop.monthly_rent ?? 0
+    const annualRent = monthlyRent * 12
+    const annualTax = rec?.property_tax_annual ?? (rec?.property_tax_monthly ?? 0) * 12
+    const annualInsurance = rec?.insurance_annual ?? (rec?.insurance_monthly ?? 0) * 12
+    const annualPM = rec?.pm_percentage ? monthlyRent * rec.pm_percentage * 12 : 0
+    const annualHOA = (rec?.hoa_monthly ?? 0) * 12
+    const annualMortgage = (rec?.mortgage_payment ?? 0) * 12
+    const annualOpex = annualMortgage + annualTax + annualInsurance + annualPM + annualHOA
+    const annualNOI = annualRent - (annualTax + annualInsurance + annualPM + annualHOA)
+    const annualNetCF = annualRent - annualOpex
+    const currentValue = prop.current_value ?? prop.purchase_price ?? 0
+    const capRate = currentValue > 0 && annualNOI > 0 ? annualNOI / currentValue : null
+    const totalAcqCost = acqCosts.reduce((s: number, a: any) => s + (a.amount ?? 0), 0)
+    const totalContrib = contributions.filter((c: any) => c.property_id === prop.id).reduce((s: number, c: any) => s + (c.amount ?? 0), 0)
+    const capitalInvested = totalAcqCost || totalContrib || prop.purchase_price || 0
+    const cashOnCash = capitalInvested > 0 && annualNetCF !== 0 ? annualNetCF / capitalInvested : null
+    const equity = currentValue > 0 && propMortgage ? currentValue - (propMortgage.current_balance ?? 0) : currentValue > 0 ? currentValue : null
+    const monthlyRecord = records.find((r: any) => r.property_id === prop.id)
+    return { prop, annualRent, annualNOI, annualNetCF, annualMortgage, annualTax, annualInsurance, annualPM, capRate, cashOnCash, capitalInvested, currentValue, equity, monthlyRent, monthlyRecord, propMortgage, rec }
+  })
+
+  const totalAnnualNOI = propMetrics.reduce((s: number, p: any) => s + p.annualNOI, 0)
+  const totalAnnualNetCF = propMetrics.reduce((s: number, p: any) => s + p.annualNetCF, 0)
+  const totalAnnualRent = propMetrics.reduce((s: number, p: any) => s + p.annualRent, 0)
+  const totalAnnualMortgage = propMetrics.reduce((s: number, p: any) => s + p.annualMortgage, 0)
+  const totalAnnualTax = propMetrics.reduce((s: number, p: any) => s + p.annualTax, 0)
+  const totalAnnualInsurance = propMetrics.reduce((s: number, p: any) => s + p.annualInsurance, 0)
+  const totalAnnualPM = propMetrics.reduce((s: number, p: any) => s + p.annualPM, 0)
+  const totalCapital = propMetrics.reduce((s: number, p: any) => s + p.capitalInvested, 0)
+  const totalValue = propMetrics.reduce((s: number, p: any) => s + p.currentValue, 0)
+  const totalEquity = propMetrics.reduce((s: number, p: any) => s + (p.equity ?? 0), 0)
+  const portfolioCapRate = totalValue > 0 && totalAnnualNOI > 0 ? totalAnnualNOI / totalValue : null
+  const portfolioCashOnCash = totalCapital > 0 && totalAnnualNetCF !== 0 ? totalAnnualNetCF / totalCapital : null
+
+  const totalEntityExp = pnlEntityExp.reduce((s: number, e: any) => s + (e.amount ?? 0), 0)
+  const pnlRent = pnlRecords.reduce((s: number, r: any) => s + (r.gross_rent ?? 0), 0)
+  const pnlExp = pnlRecords.reduce((s: number, r: any) => s + (r.total_expenses ?? 0), 0)
+  const pnlNet = pnlRent - pnlExp - totalEntityExp
+  const pnlLockedMonths = [...new Set(pnlRecords.map((r: any) => r.month))].length
+  const totalExtraordinary = extraordinaryItems.reduce((s: number, e: any) => s + (e.amount ?? 0), 0)
+
+  const chartData = MONTHS.map((m, i) => {
+    const mn = i + 1
+    const monthRecs = allRecords.filter((r: any) => r.month === mn)
+    const monthEE = entityExpenses.filter((e: any) => e.month === mn)
+    const rent = monthRecs.reduce((s: number, r: any) => s + (r.gross_rent ?? 0), 0)
+    const opex = monthRecs.reduce((s: number, r: any) => s + (r.total_expenses ?? 0), 0)
+    const entityExp = monthEE.reduce((s: number, e: any) => s + (e.amount ?? 0), 0)
+    return { mes: m, ingresos: rent, gastos: opex, entidad: entityExp, hasData: monthRecs.length > 0 }
+  }).filter(d => d.hasData)
+
+  const urgentTasks = tasks.filter((t: any) => {
+    const days = daysUntil(t.due_date)
+    const u = urgencyFromDays(days)
+    return u === 'overdue' || u === 'urgent' || u === 'soon'
+  })
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <p className="text-[13px] text-gray-400">Cargando dashboard...</p>
+    </div>
+  )
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Panel de control</h1>
-        <p className="text-sm text-slate-500 mt-0.5">{new Date().toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+
+      {/* ZONA 1 — Resumen ejecutivo */}
+      <div className="bg-[#185FA5] rounded-xl p-5 text-white">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[11px] text-[#B5D4F4] font-medium uppercase tracking-wide">{entityName}</p>
+            <p className="text-[18px] font-medium mt-0.5">Portfolio overview</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] text-[#B5D4F4]">
+              {lastClose ? `Ultimo cierre: ${MONTHS[lastClose.month-1]} ${lastClose.year}` : 'Sin cierres todavia'}
+            </p>
+            <p className="text-[11px] text-[#B5D4F4] mt-0.5">{occupied}/{properties.length} propiedades ocupadas</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-5 gap-3">
+          {[
+            { label: 'Renta mensual', value: formatCurrency(totalAnnualRent / 12) },
+            { label: 'Equity total', value: totalEquity > 0 ? formatCurrency(totalEquity) : '—' },
+            { label: 'Capital invertido', value: totalCapital > 0 ? formatCurrency(totalCapital) : '—' },
+            { label: 'Cap rate', value: fmtPct(portfolioCapRate) },
+            { label: 'Cash-on-cash', value: fmtPct(portfolioCashOnCash) },
+          ].map(k => (
+            <div key={k.label} className="bg-white/10 rounded-lg px-3 py-2.5">
+              <p className="text-[10px] text-[#B5D4F4] mb-0.5">{k.label}</p>
+              <p className="text-[16px] font-medium text-white">{k.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Alertas operativas */}
-      {canSeeCultivo && (lowStockItems.length > 0 || upcomingEvents.length > 0) && (
-        <div className="space-y-2">
-          {lowStockItems.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-amber-800">Stock bajo de insumos</p>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {lowStockItems.map((s: any) => (
-                    <Link key={s.id} href={`/insumos/${s.id}`} className="text-xs bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5 hover:bg-amber-200 transition-colors">
-                      {s.name} Ã¢â‚¬â€ {s.stock_actual} {s.unit}
-                    </Link>
-                  ))}
+      {/* ZONA 2 — Property cards */}
+      <div className="grid grid-cols-2 gap-3">
+        {propMetrics.map((m: any) => {
+          const cf = m.monthlyRecord?.net_cashflow ?? null
+          const isPositive = cf !== null ? cf >= 0 : m.annualNetCF >= 0
+          const leaseEnd = m.prop.lease_end
+          const leaseDays = leaseEnd ? daysUntil(leaseEnd) : null
+          const leaseUrgent = leaseDays !== null && leaseDays < 90
+          return (
+            <Link key={m.prop.id} href={`/properties/${m.prop.id}`}
+              className={`block rounded-xl p-4 border transition-all hover:shadow-sm ${isPositive ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <p className="text-[14px] font-medium text-gray-900">{m.prop.name}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">{m.prop.city}, {m.prop.state} · {m.prop.entity?.name}</p>
+                </div>
+                <div className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${isPositive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}`}>
+                  {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                  {m.prop.status === 'occupied' ? 'Occupied' : m.prop.status === 'vacant' ? 'Vacant' : m.prop.status}
                 </div>
               </div>
-            </div>
-          )}
-          {upcomingEvents.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
-              <Clock className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-blue-800">Eventos planificados proximos 7 dias</p>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {upcomingEvents.map((e: any) => (
-                    <span key={e.id} className="text-xs bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5">
-                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} Ã¢â‚¬â€ {EVENT_LABELS[e.event_type] ?? e.event_type}{e.room ? ` (${e.room.name})` : ""}
-                    </span>
-                  ))}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <p className="text-[10px] text-gray-400 mb-0.5">Renta mensual</p>
+                  <p className="text-[13px] font-medium text-gray-900">{m.monthlyRent > 0 ? formatCurrency(m.monthlyRent) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 mb-0.5">Net CF mes</p>
+                  <p className={`text-[13px] font-medium ${cf !== null && cf >= 0 ? 'text-green-700' : cf !== null ? 'text-red-600' : 'text-gray-400'}`}>
+                    {cf !== null ? formatCurrencySigned(cf) : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 mb-0.5">Cap rate</p>
+                  <p className="text-[13px] font-medium text-blue-700">{fmtPct(m.capRate)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 mb-0.5">Equity est.</p>
+                  <p className="text-[13px] font-medium text-gray-900">{m.equity !== null && m.equity > 0 ? formatCurrency(m.equity) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 mb-0.5">Cash-on-cash</p>
+                  <p className="text-[13px] font-medium text-green-700">{fmtPct(m.cashOnCash)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 mb-0.5">Lease vence</p>
+                  <p className={`text-[13px] font-medium ${leaseUrgent ? 'text-amber-600' : 'text-gray-700'}`}>
+                    {leaseEnd ? formatDate(leaseEnd, 'short') : '—'}
+                  </p>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* KPIs unificados */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {/* Compliance resumido */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 col-span-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-3">Pacientes</p>
-          <div className="grid grid-cols-4 gap-2">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-slate-900">{compliance?.total_activos ?? 0}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Total</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-700">{compliance?.en_regla ?? 0}</p>
-              <p className="text-xs text-slate-400 mt-0.5">En regla</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-amber-600">{compliance?.en_atencion ?? 0}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Atencion</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-red-600">{compliance?.criticos ?? 0}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Critico</p>
-            </div>
-          </div>
-          {((compliance?.reprocann_vencido ?? 0) > 0 || (compliance?.reprocann_proximo ?? 0) > 0) && (
-            <div className="flex gap-3 mt-3 pt-3 border-t border-slate-100">
-              {(compliance?.reprocann_vencido ?? 0) > 0 && (
-                <span className="text-xs bg-red-50 text-red-700 border border-red-200 rounded-full px-2.5 py-0.5">
-                  REPROCANN vencido: {compliance?.reprocann_vencido}
-                </span>
-              )}
-              {(compliance?.reprocann_proximo ?? 0) > 0 && (
-                <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5">
-                  REPROCANN proximo: {compliance?.reprocann_proximo}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Stock */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1">Stock</p>
-          <p className="text-2xl font-bold text-slate-900">{formatGrams(totalStock)}</p>
-          <p className="text-xs text-slate-400 mt-0.5">disponible</p>
-        </div>
-
-        {/* Plantas activas */}
-        {canSeeCultivo && (
-          <div className="bg-white border border-[#ddecd8] rounded-xl p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-[#6b8c65] mb-1">Plantas activas</p>
-            <p className="text-2xl font-bold text-[#1a2e1a]">{totalActivePlants}</p>
-            <div className="flex gap-2 mt-1.5 flex-wrap">
-              {totalSeedling > 0 && <span className="text-xs text-slate-500">{totalSeedling} plantines</span>}
-              {totalVeg > 0 && <span className="text-xs text-[#2d6a1f] font-medium">{totalVeg} vege</span>}
-              {totalFlower > 0 && <span className="text-xs text-amber-600 font-medium">{totalFlower} flora</span>}
-            </div>
+            </Link>
+          )
+        })}
+        {properties.length === 0 && (
+          <div className="col-span-2 bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center">
+            <p className="text-[13px] text-gray-400">Agrega propiedades para ver las cards</p>
           </div>
         )}
       </div>
 
-      {/* Ciclo activo */}
-      {canSeeCultivo && cycle && (
-        <Card padding={false}>
-          <div className="px-5 pt-5 pb-4 flex items-center justify-between">
-            <div>
-              <SectionHeader title={`Ciclo activo â€” ${cycle.name}`} />
-              <p className="text-xs text-slate-500 -mt-3">Desde {formatDate(cycle.start_date)} Â· {lots.length} lote{lots.length !== 1 ? "s" : ""} Â· {totalActivePlants} plantas activas</p>
+      {/* ZONA 3 — Operativo del mes */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <p className="text-[13px] font-medium text-gray-900">Operativo — {MONTHS[month-1]} {year}</p>
+          <div className="flex-1 h-px bg-gray-100" />
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: 'Gross rent', value: formatCurrency(grossRent), sub: `${MONTHS[month-1]} ${year}` },
+            { label: 'Gastos totales', value: formatCurrency(totalExpenses + currentMonthEntityExp), sub: 'incl. entidad' },
+            { label: 'Net cashflow', value: formatCurrencySigned(netCashflow), cls: netCashflow >= 0 ? 'text-green-600' : 'text-red-500', sub: 'este mes' },
+            { label: 'Deuda pendiente', value: formatCurrency(totalDebt), sub: 'mortgages activos' },
+          ].map(k => (
+            <div key={k.label} className="bg-gray-50 rounded-lg p-4">
+              <p className="text-[12px] text-gray-500 mb-1">{k.label}</p>
+              <p className={`text-[20px] font-medium ${(k as any).cls ?? ''}`}>{k.value}</p>
+              <p className="text-[11px] text-gray-400 mt-1">{k.sub}</p>
             </div>
-            <Link href={`/ciclos/${cycle.id}`} className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 shrink-0">
-              Ver ciclo <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <div className="px-5 pb-5">
-            <CycleRoomPanel
-              cycleId={cycle.id}
-              rooms={activePlants}
-              lots={lots}
-              products={dashProducts}
-              allRooms={activePlants.map((r: any) => ({ id: r.room_id, name: r.room_name, square_meters: r.square_meters }))}
-            />
-            <div className="flex gap-2 mt-3">
-              <Link href={`/ciclos/${cycle.id}/timeline`} className="text-xs text-[#2d5a27] hover:underline flex items-center gap-1">
-                <FlaskConical className="w-3 h-3" />Ver linea de tiempo
-              </Link>
-            </div>
-          </div>
-        </Card>
-      )}
+          ))}
+        </div>
+      </div>
 
-      {/* Pedidos pendientes */}
-      {pendingOrders.length > 0 && (
-        <Card padding={false}>
-          <div className="px-5 pt-5 pb-4">
-            <SectionHeader title={`Pedidos activos (${pendingOrders.length})`} actions={
-              <Link href="/dispensas/pedidos" className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1">Ver todos <ArrowRight className="w-3 h-3" /></Link>
-            } />
+      {/* ZONA 4 — P&L + Grafico */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <p className="text-[13px] font-medium text-gray-900">P&L anual</p>
+          <div className="flex-1 h-px bg-gray-100" />
+          <div className="flex border border-gray-200 rounded-lg overflow-hidden text-[12px]">
+            {pnlYears.map(y => (
+              <button key={y} onClick={() => setPnlYear(y)}
+                className={`px-3 py-1.5 transition-colors ${pnlYear === y ? 'bg-blue-600 text-white font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                {y}
+              </button>
+            ))}
           </div>
-          <div className="divide-y divide-slate-100">
-            {pendingOrders.map((order: any) => {
-              const config = ORDER_STATUS[order.status] ?? { label: order.status, color: "bg-slate-50 text-slate-600 border-slate-200" }
-              return (
-                <div key={order.id} className="flex items-center justify-between px-5 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{order.patient?.full_name ?? "-"}</p>
-                    <p className="text-xs text-slate-400">{formatDate(order.created_at)}</p>
-                  </div>
-                  <span className={`text-xs rounded-full px-2.5 py-0.5 border font-medium ${config.color}`}>{config.label}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white border border-gray-100 rounded-xl p-5">
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {[
+                { label: `Renta bruta ${pnlYear}`, value: formatCurrency(pnlRent), sub: `${pnlLockedMonths} ${pnlLockedMonths === 1 ? 'mes cerrado' : 'meses cerrados'}`, cls: 'text-green-600' },
+                { label: 'Gastos operativos', value: formatCurrency(pnlExp), sub: '' },
+                { label: 'Gastos entidad', value: formatCurrency(totalEntityExp), sub: 'divididos entre propiedades', cls: 'text-blue-600' },
+                { label: `Net CF ${pnlYear}`, value: formatCurrencySigned(pnlNet), sub: pnlYear === year ? 'hasta hoy' : 'año completo', cls: pnlNet >= 0 ? 'text-green-600' : 'text-red-500' },
+              ].map(k => (
+                <div key={k.label} className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-[11px] text-gray-500 mb-1">{k.label}</p>
+                  <p className={`text-[17px] font-medium ${(k as any).cls ?? ''}`}>{k.value}</p>
+                  {k.sub && <p className="text-[10px] text-gray-400 mt-0.5">{k.sub}</p>}
                 </div>
-              )
-            })}
+              ))}
+            </div>
+            {/* Desglose por propiedad — colapsable */}
+            <button onClick={() => setShowDesglose(!showDesglose)}
+              className="w-full flex items-center justify-between text-[12px] text-gray-500 hover:text-gray-700 pt-3 border-t border-gray-100">
+              <span>Desglose por propiedad</span>
+              {showDesglose ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {showDesglose && (
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      {['Propiedad','Renta','Mortgage','Taxes','Insurance','PM','G.Entidad','Net CF'].map(h => (
+                        <th key={h} className="text-right text-[10px] font-medium text-gray-400 pb-2 first:text-left">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {propMetrics.map((m: any) => {
+                      const sharedExp = totalEntityExp / activePropCount
+                      const netWithShared = m.annualNetCF - sharedExp
+                      return (
+                        <tr key={m.prop.id} className="border-b border-gray-50 last:border-0">
+                          <td className="py-2 pr-2">
+                            <p className="font-medium text-gray-900">{m.prop.name}</p>
+                            <p className="text-[10px] text-gray-400">{m.prop.city}</p>
+                          </td>
+                          <td className="py-2 text-right text-green-700">{formatCurrency(m.annualRent)}</td>
+                          <td className="py-2 text-right text-gray-600">{formatCurrency(m.annualMortgage)}</td>
+                          <td className="py-2 text-right text-gray-600">{formatCurrency(m.annualTax)}</td>
+                          <td className="py-2 text-right text-gray-600">{formatCurrency(m.annualInsurance)}</td>
+                          <td className="py-2 text-right text-gray-600">{formatCurrency(m.annualPM)}</td>
+                          <td className="py-2 text-right text-blue-600">{formatCurrency(sharedExp)}</td>
+                          <td className={`py-2 text-right font-medium ${netWithShared >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {formatCurrencySigned(netWithShared)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    <tr className="border-t border-gray-200 font-medium bg-gray-50">
+                      <td className="py-2 text-gray-900">Total</td>
+                      <td className="py-2 text-right text-green-700">{formatCurrency(totalAnnualRent)}</td>
+                      <td className="py-2 text-right">{formatCurrency(totalAnnualMortgage)}</td>
+                      <td className="py-2 text-right">{formatCurrency(totalAnnualTax)}</td>
+                      <td className="py-2 text-right">{formatCurrency(totalAnnualInsurance)}</td>
+                      <td className="py-2 text-right">{formatCurrency(totalAnnualPM)}</td>
+                      <td className="py-2 text-right text-blue-600">{formatCurrency(totalEntityExp)}</td>
+                      <td className={`py-2 text-right text-[13px] ${(totalAnnualNetCF - totalEntityExp) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {formatCurrencySigned(totalAnnualNetCF - totalEntityExp)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </Card>
-      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card padding={false}>
-          <div className="px-5 pt-5 pb-4">
-            <SectionHeader title="Alertas de pacientes" actions={<Link href="/pacientes" className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1">Ver todos <ArrowRight className="w-3 h-3" /></Link>} />
-          </div>
-          {alerts.length === 0 ? (
-            <div className="px-5 pb-5"><EmptyState title="Sin alertas activas" description="Todos los pacientes estan en regla" icon={CheckCircle2} /></div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {alerts.map(alert => {
-                const days = daysUntil(alert.reprocann_expiry)
+          {/* Grafico + alertas */}
+          <div className="space-y-3">
+            <div className="bg-white border border-gray-100 rounded-xl p-5">
+              <p className="text-[13px] font-medium text-gray-900 mb-3">Cashflow — {year}</p>
+              {chartData.length === 0 ? (
+                <div className="flex items-center justify-center h-28 text-[12px] text-gray-400">Sin datos cerrados todavia</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={160}>
+                  <BarChart data={chartData} barSize={10}>
+                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000 ? '$' + (v/1000).toFixed(0) + 'k' : '$' + v} width={36} />
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="ingresos" name="Ingresos" fill="#22c55e" radius={[2,2,0,0]} />
+                    <Bar dataKey="gastos" name="Gastos op." fill="#f87171" radius={[2,2,0,0]} />
+                    <Bar dataKey="entidad" name="G. Entidad" fill="#fb923c" radius={[2,2,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* Alertas */}
+            <div className="bg-white border border-gray-100 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[13px] font-medium text-gray-900">Alertas y vencimientos</p>
+                <Link href="/alertas" className="text-[11px] text-blue-600 hover:underline">Ver todas</Link>
+              </div>
+              {tasks.length === 0 ? (
+                <p className="text-[12px] text-gray-400 text-center py-3">Sin alertas pendientes</p>
+              ) : tasks.map((task: any) => {
+                const days = daysUntil(task.due_date)
+                const urgency = urgencyFromDays(days)
+                const dotColor = urgency === 'overdue' || urgency === 'urgent' ? 'bg-red-400' : urgency === 'soon' ? 'bg-amber-400' : 'bg-blue-400'
                 return (
-                  <Link key={alert.id} href={`/pacientes/${alert.id}`} className="flex items-start justify-between px-5 py-3 hover:bg-slate-50 transition-colors">
-                    <div className="min-w-0 mr-3">
-                      <p className="text-sm font-medium text-slate-900 truncate">{alert.full_name}</p>
-                      <p className="text-xs text-slate-500">DNI {alert.dni}</p>
-                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                        {alert.docs_criticos > 0 && <span className="text-xs bg-red-50 text-red-700 border border-red-200 rounded px-1.5 py-0.5">{alert.docs_criticos} doc. faltante{alert.docs_criticos > 1 ? "s" : ""}</span>}
-                        {days !== null && days <= 30 && <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5">REPROCANN {days < 0 ? "VENCIDO" : `vence en ${days}d`}</span>}
-                      </div>
+                  <div key={task.id} className="flex items-start gap-2.5 py-2 border-b border-gray-50 last:border-0">
+                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${dotColor}`} />
+                    <div>
+                      <p className="text-[12px] text-gray-900">{task.title}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{task.property?.name ? task.property.name + ' · ' : ''}{task.due_date ? formatDate(task.due_date) : 'Sin fecha'}</p>
                     </div>
-                    <ComplianceBadge status={alert.compliance_status} />
-                  </Link>
+                  </div>
                 )
               })}
             </div>
-          )}
-        </Card>
-
-        {isAdmin && <Card padding={false}>
-          <div className="px-5 pt-5 pb-4">
-            <SectionHeader title="Documentacion ONG" actions={<Link href="/documentacion-ong" className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1">Ver checklist <ArrowRight className="w-3 h-3" /></Link>} />
           </div>
-          {(!orgDocs.data || orgDocs.data.length === 0) ? (
-            <div className="px-5 pb-5"><EmptyState title="Documentacion institucional completa" icon={Building2} /></div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {(orgDocs.data ?? []).map((doc: any) => (
-                <Link key={doc.id} href="/documentacion-ong" className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors">
-                  <div className="min-w-0 mr-3">
-                    <p className="text-sm text-slate-800 truncate">{doc.name}</p>
-                    {doc.is_mandatory && <p className="text-xs text-slate-400">Obligatorio</p>}
-                  </div>
-                  <span className={`text-xs rounded px-1.5 py-0.5 border whitespace-nowrap ${doc.status === "faltante" ? "bg-red-50 text-red-700 border-red-200" : doc.status === "pendiente_revision" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-orange-50 text-orange-700 border-orange-200"}`}>
-                    {doc.status === "faltante" ? "Faltante" : doc.status === "pendiente_revision" ? "Pendiente" : "Observado"}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </Card>}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {isAdmin && <Card padding={false}>
-          <div className="px-5 pt-5 pb-4">
-            <SectionHeader title={`Membresias ${new Date().toLocaleDateString("es-AR", { month: "long" })}`} actions={<Link href="/membresias" className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1">Ver todas <ArrowRight className="w-3 h-3" /></Link>} />
-          </div>
-          {memberships.length === 0 ? <div className="px-5 pb-5"><EmptyState title="Sin pagos pendientes" icon={CreditCard} /></div> : (
-            <div className="divide-y divide-slate-100">
-              {memberships.map(m => (
-                <Link key={m.patient_id} href={`/pacientes/${m.patient_id}`} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors">
-                  <div className="min-w-0 mr-3">
-                    <p className="text-sm font-medium text-slate-900 truncate">{m.full_name}</p>
-                    <p className="text-xs text-slate-500">{m.plan_name ?? "Sin plan asignado"}</p>
-                  </div>
-                  <PaymentStatusBadge status={m.payment_status ?? "pendiente"} />
-                </Link>
-              ))}
+      {/* ZONA 5 — Gastos extraordinarios (colapsable) */}
+      {extraordinaryItems.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+          <button onClick={() => setShowExtraordinary(!showExtraordinary)}
+            className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors">
+            <div className="flex items-center gap-3">
+              <p className="text-[13px] font-medium text-gray-900">Gastos extraordinarios — {year}</p>
+              <span className="text-[11px] text-red-600 font-medium">{formatCurrency(totalExtraordinary)} total</span>
             </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-gray-400">{extraordinaryItems.length} gastos</span>
+              {showExtraordinary ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+            </div>
+          </button>
+          {showExtraordinary && (
+            <table className="w-full text-[13px] border-t border-gray-100">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  {['Periodo','Propiedad','Categoria','Descripcion','Monto'].map(h => (
+                    <th key={h} className="text-left text-[11px] font-medium text-gray-400 px-5 py-2.5">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {extraordinaryItems.slice(0, 8).map((item: any) => (
+                  <tr key={item.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
+                    <td className="px-5 py-2.5 text-gray-500">{MONTHS[item.month-1]} {item.year}</td>
+                    <td className="px-5 py-2.5 text-gray-900">{item.property?.name ?? '—'}</td>
+                    <td className="px-5 py-2.5">
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-800">{item.category}</span>
+                    </td>
+                    <td className="px-5 py-2.5 text-gray-600">{item.description}</td>
+                    <td className="px-5 py-2.5 font-medium text-red-600">{formatCurrency(item.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-        </Card>}
+        </div>
+      )}
 
-        <Card padding={false}>
-          <div className="px-5 pt-5 pb-4">
-            <SectionHeader title="Dispensas recientes" actions={<Link href="/dispensas" className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1">Ver todas <ArrowRight className="w-3 h-3" /></Link>} />
-          </div>
-          {(!recentDispenses.data || recentDispenses.data.length === 0) ? <div className="px-5 pb-5"><EmptyState title="Sin dispensas registradas" icon={Pill} /></div> : (
-            <div className="divide-y divide-slate-100">
-              {(recentDispenses.data ?? []).map((d: any) => (
-                <div key={d.id} className="flex items-center justify-between px-5 py-3">
-                  <div className="min-w-0 mr-3">
-                    <p className="text-sm font-medium text-slate-900 truncate">{d.patient?.full_name ?? "-"}</p>
-                    <p className="text-xs text-slate-500">Lote {d.lot?.lot_code ?? "-"} Ã‚Â· {formatDate(d.dispensed_at)}</p>
-                  </div>
-                  <span className="text-sm font-medium text-slate-700 tabular-nums">{formatGrams(d.grams)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+      {/* Link a historial CF */}
+      <div className="flex items-center justify-between bg-gray-50 rounded-xl px-5 py-4">
+        <div>
+          <p className="text-[13px] font-medium text-gray-900">Cashflow mensual detallado</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">Historial completo mes a mes, por propiedad y consolidado</p>
+        </div>
+        <Link href="/cashflow" className="flex items-center gap-1.5 text-[13px] px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700">
+          Ver historial CF
+        </Link>
       </div>
 
-      {recentLog.data && recentLog.data.length > 0 && (
-        <Card padding={false}>
-          <div className="px-5 pt-5 pb-4">
-            <SectionHeader title="Bitacora reciente" actions={<Link href="/bitacora" className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1">Ver bitacora <ArrowRight className="w-3 h-3" /></Link>} />
-          </div>
-          <div className="divide-y divide-slate-100">
-            {(recentLog.data ?? []).map((entry: any) => (
-              <div key={entry.id} className="flex items-start gap-3 px-5 py-3">
-                <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${entry.is_incident ? "bg-red-500" : "bg-slate-300"}`} />
-                <div className="min-w-0">
-                  <p className="text-sm text-slate-800 truncate">{entry.title}</p>
-                  <p className="text-xs text-slate-400">{formatDate(entry.entry_date)} Ã‚Â· {(entry as any).created_by_profile?.full_name ?? "-"}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {planRequests.data && planRequests.data.length > 0 && (
-        <Card padding={false}>
-          <div className="px-5 pt-5 pb-4">
-            <SectionHeader title={`Solicitudes de plan (${planRequests.data.length})`} />
-          </div>
-          <div className="divide-y divide-slate-100">
-            {(planRequests.data as any[]).map((req: any) => (
-              <div key={req.id} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <p className="text-sm font-medium text-[#1a2e1a]">{req.patient?.full_name ?? "-"}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {req.request_type === "upgrade"
-                      ? `Cambio: ${req.current_plan?.name ?? "-"} -> ${req.requested_plan?.name ?? "-"}`
-                      : `Excepcion: ${req.requested_grams}g extra`}
-                  </p>
-                  {req.reason && <p className="text-xs text-slate-400 italic mt-0.5">{req.reason}</p>}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <PlanReviewButtons requestId={req.id} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   )
 }
-
-
