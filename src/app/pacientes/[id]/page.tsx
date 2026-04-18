@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { Edit } from "lucide-react"
@@ -12,6 +12,7 @@ import QRDisplay from "@/components/qr/QRDisplay"
 import DeletePatientButton from "./DeletePatientButton"
 import ComprobanteButton from "./ComprobanteButton"
 import MedicalNotesEditor from "./MedicalNotesEditor"
+import PortalAccessButton from "./PortalAccessButton"
 
 export default async function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -24,6 +25,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const isMedico = profile?.role === "medico"
   const { data: patient } = await supabase.from("patients").select("*, medical_notes, treating_physician:profiles!patients_treating_physician_id_fkey(id, full_name), membership_plan:membership_plans(id, name, monthly_grams, monthly_amount)").eq("id", id).is("deleted_at", null).single()
   if (!patient) notFound()
+  const { data: patientProfile } = await supabase.from("profiles").select("id").eq("patient_id", id).maybeSingle()
+  const hasPortalAccess = !!patientProfile
   const { data: documents } = await supabase.from("patient_documents").select("*, doc_type:patient_document_types(id, name, slug, is_mandatory, has_expiry, sort_order)").eq("patient_id", id).order("doc_type(sort_order)")
   const { data: signature } = await supabase
     .from("document_signatures")
@@ -43,11 +46,12 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     <div className="space-y-5">
       <div>
         <BackButton label="Volver a pacientes" />
-        <PageHeader title={patient.full_name} description={`DNI ${patient.dni} Â· Alta: ${formatDate(patient.created_at)}`}
+        <PageHeader title={patient.full_name} description={`DNI ${patient.dni} Ã‚Â· Alta: ${formatDate(patient.created_at)}`}
           actions={
             <div className="flex items-center gap-2">
               <QRDisplay entityId={id} entityType="patient" entityName={patient.full_name} currentToken={patient.qr_token} />
               <Link href={`/pacientes/${id}/editar`}><Button variant="secondary" size="sm"><Edit className="w-3.5 h-3.5" />Editar</Button></Link>
+              {isAdmin && !hasPortalAccess && <PortalAccessButton patientId={id} patientName={patient.full_name} patientEmail={patient.email} patientDni={patient.dni} />}
               {isAdmin && <DeletePatientButton patientId={id} patientName={patient.full_name} />}
             </div>
           }
@@ -103,7 +107,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <div key={doc.id} className="flex items-center gap-3 px-5 py-3">
               <div className={`w-2 h-2 rounded-full shrink-0 ${doc.status === "aprobado" ? "bg-green-500" : doc.status === "pendiente_revision" ? "bg-amber-500" : doc.status === "pendiente_vinculacion" ? "bg-slate-300" : doc.status === "observado" ? "bg-orange-500" : "bg-red-500"}`} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-[#1a2e1a]">{doc.doc_type?.name}{doc.doc_type?.is_mandatory && <span className="text-xs text-slate-400 ml-1">Â· Obligatorio</span>}</p>
+                <p className="text-sm text-[#1a2e1a]">{doc.doc_type?.name}{doc.doc_type?.is_mandatory && <span className="text-xs text-slate-400 ml-1">Ã‚Â· Obligatorio</span>}</p>
                 {doc.file_name && <p className="text-xs text-slate-400 truncate mt-0.5">{doc.file_name}</p>}
                 {doc.observations && <p className="text-xs text-orange-600 mt-0.5">Obs: {doc.observations}</p>}
                 {doc.reviewed_at && doc.status === "aprobado" && <p className="text-xs text-green-600 mt-0.5">Aprobado el {formatDate(doc.reviewed_at)}</p>}
@@ -122,7 +126,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       <Card padding={false}>
         <div className="px-5 pt-5 pb-4"><SectionHeader title="Historial de dispensas" actions={<Link href="/dispensas"><Button size="sm">Registrar dispensa</Button></Link>} /></div>
         {(!dispenses || dispenses.length === 0) ? <div className="text-center py-8 text-sm text-slate-400">Sin dispensas registradas</div> : (
-          <div className="overflow-x-auto"><table className="table-ong w-full"><thead><tr><th>Fecha</th><th>Producto</th><th>Lote</th><th>Cantidad</th><th>Registrado por</th></tr></thead><tbody>{dispenses.map((d: any) => (<tr key={d.id}><td>{formatDateTime(d.dispensed_at)}</td><td>{d.product_desc}</td><td className="font-mono text-xs">{d.lot?.lot_code ?? "â€”"}</td><td className="font-medium tabular-nums">{formatGrams(d.grams)}</td><td className="text-slate-500">{d.performed_by_profile?.full_name ?? "â€”"}</td></tr>))}</tbody></table></div>
+          <div className="overflow-x-auto"><table className="table-ong w-full"><thead><tr><th>Fecha</th><th>Producto</th><th>Lote</th><th>Cantidad</th><th>Registrado por</th></tr></thead><tbody>{dispenses.map((d: any) => (<tr key={d.id}><td>{formatDateTime(d.dispensed_at)}</td><td>{d.product_desc}</td><td className="font-mono text-xs">{d.lot?.lot_code ?? "Ã¢â‚¬â€"}</td><td className="font-medium tabular-nums">{formatGrams(d.grams)}</td><td className="text-slate-500">{d.performed_by_profile?.full_name ?? "Ã¢â‚¬â€"}</td></tr>))}</tbody></table></div>
         )}
       </Card>
 
@@ -195,3 +199,6 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     </div>
   )
 }
+
+
+

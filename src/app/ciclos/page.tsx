@@ -49,8 +49,13 @@ export default async function CiclosPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <h2 className="text-base font-bold text-[#1a2e1a]">{cycle.name}</h2>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cycle.status === "activo" ? "bg-[#edf7e8] text-[#2d6a1f] border-[#b8daa8]" : "bg-[#f0f4f0] text-[#5a8a52] border-[#c8dcc4]"}`}>
-                          {cycle.status === "activo" ? "Activo" : "Finalizado"}
-                        </span>
+                          {cycle.status === "activo" ? "Activo" : "Finalizado"}</span>
+                        {cycle.cycle_type === "reproductivo" && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">Reproductivo</span>
+                        )}
+                        {cycle.cycle_type === "productivo" && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">Productivo</span>
+                        )}
                       </div>
                       <p className="text-xs text-[#9ab894]">
                         {formatDate(cycle.start_date)}{cycle.end_date && ` Ã¢â€ â€™ ${formatDate(cycle.end_date)}`}{durationDays && ` Ã‚Â· ${durationDays} dias`}
@@ -91,3 +96,4 @@ export default async function CiclosPage() {
     </div>
   )
 }
+

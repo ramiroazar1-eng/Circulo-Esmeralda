@@ -146,7 +146,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           </Link>
           {["admin","biologo","director_de_cultivo","director_de_cultivo","administrativo"].includes(role) && (
             <Link href={`/ciclos/${id}/biologo`} className="inline-flex items-center gap-1.5 text-xs bg-[#edf7e8] border border-[#b8daa8] hover:border-[#4d8a3d] text-[#2d5a27] font-medium rounded-lg px-3 py-2 transition-colors">
-              Trazabilidad biologo
+              Trazabilidad director de cultivo
             </Link>
           )}
           {canEdit && <PeriodPdfButton cycleId={id} />}
@@ -353,5 +353,6 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
     </div>
   )
 }
+
 
 
