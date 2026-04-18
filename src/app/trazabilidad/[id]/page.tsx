@@ -7,6 +7,7 @@ import EditLotModal from "../EditLotModal"
 import TransferLotModal from "../TransferLotModal"
 import Link from "next/link"
 import QRDisplay from "@/components/qr/QRDisplay"
+import CloneLotButton from "../CloneLotButton"
 
 const TIMELINE_STEPS = [
   { key: "seedling_date",     label: "Plantines" },
@@ -35,7 +36,14 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   const canEdit = ["admin","biologo","director_de_cultivo","administrativo"].includes(profile?.role ?? "")
 
-  const [lotRes, geneticsRes, roomsRes, eventsRes, costsRes, supplyMovementsRes, roomHistoryRes] = await Promise.all([
+  const lotRes = await supabase.from("lots")
+      .select("*, genetic:genetics(name, strain_type, thc_percentage, cbd_percentage), room:rooms(id, name), stock_position:stock_positions(available_grams, reserved_grams), cycle:production_cycles(name, id)")
+      .eq("id", id).single()
+
+  const lot = lotRes.data
+  if (!lot) notFound()
+
+  const [geneticsRes, roomsRes, eventsRes, costsRes, supplyMovementsRes, roomHistoryRes] = await Promise.all([
     supabase.from("lots")
       .select("*, genetic:genetics(name, strain_type, thc_percentage, cbd_percentage), room:rooms(id, name), stock_position:stock_positions(available_grams, reserved_grams), cycle:production_cycles(name, id)")
       .eq("id", id).single(),
@@ -51,14 +59,23 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
       .eq("lot_id", id)
       .eq("movement_type", "consumo")
       .order("movement_date", { ascending: false }),
+    supabase.from("lots").select("id, lot_code, lot_subtype, plant_count, status, genetic:genetics(name)").eq("parent_lot_id", id),
+    supabase.from("lots").select("id, lot_code, lot_subtype, parent_lot_id, genetic:genetics(name), room:rooms(name), cycle:production_cycles(name)").eq("id", (lotRes.data as any)?.parent_lot_id ?? "00000000-0000-0000-0000-000000000000").maybeSingle(),
     supabase.from("lot_room_history")
       .select("id, room:rooms(name), entered_at, exited_at, notes")
       .eq("lot_id", id)
       .order("entered_at", { ascending: true }),
   ])
 
-  const lot = lotRes.data
-  if (!lot) notFound()
+  // Esquejes y lote madre (dependen del lote)
+  const [clonesRes, parentLotRes] = await Promise.all([
+    supabase.from("lots").select("id, lot_code, lot_subtype, plant_count, status, genetic:genetics(name), room:rooms(name)").eq("parent_lot_id", id).order("created_at", { ascending: false }),
+    (lot as any).parent_lot_id
+      ? supabase.from("lots").select("id, lot_code, genetic:genetics(name), room:rooms(name), cycle:production_cycles(name)").eq("id", (lot as any).parent_lot_id).single()
+      : Promise.resolve({ data: null }),
+  ])
+  const clones = (clonesRes.data ?? []) as any[]
+  const parentLot = parentLotRes.data as any
   const genetics = geneticsRes.data ?? []
   const rooms = roomsRes.data ?? []
   const events = (eventsRes.data ?? []) as any[]
@@ -108,6 +125,14 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
             />
           )}
           {canEdit && <EditLotModal lot={lot} genetics={genetics} rooms={rooms} />}
+          {canEdit && ["plantines","vegetativo","floracion"].includes(lot.status) && (
+            <CloneLotButton
+              lotId={lot.id}
+              lotCode={lot.lot_code}
+              geneticName={(lot as any).genetic?.name ?? "Sin genetica"}
+              rooms={rooms}
+            />
+          )}
         </div>
       </div>
 
@@ -292,3 +317,10 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
     </div>
   )
 }
+
+
+
+
+
+
+
