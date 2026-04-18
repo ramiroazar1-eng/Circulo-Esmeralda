@@ -44,9 +44,6 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
   if (!lot) notFound()
 
   const [geneticsRes, roomsRes, eventsRes, costsRes, supplyMovementsRes, roomHistoryRes] = await Promise.all([
-    supabase.from("lots")
-      .select("*, genetic:genetics(name, strain_type, thc_percentage, cbd_percentage), room:rooms(id, name), stock_position:stock_positions(available_grams, reserved_grams), cycle:production_cycles(name, id)")
-      .eq("id", id).single(),
     supabase.from("genetics").select("id, name").eq("is_active", true),
     supabase.from("rooms").select("id, name").eq("is_active", true),
     supabase.from("cycle_events")
@@ -59,8 +56,6 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
       .eq("lot_id", id)
       .eq("movement_type", "consumo")
       .order("movement_date", { ascending: false }),
-    supabase.from("lots").select("id, lot_code, lot_subtype, plant_count, status, genetic:genetics(name)").eq("parent_lot_id", id),
-    supabase.from("lots").select("id, lot_code, lot_subtype, parent_lot_id, genetic:genetics(name), room:rooms(name), cycle:production_cycles(name)").eq("id", (lotRes.data as any)?.parent_lot_id ?? "00000000-0000-0000-0000-000000000000").maybeSingle(),
     supabase.from("lot_room_history")
       .select("id, room:rooms(name), entered_at, exited_at, notes")
       .eq("lot_id", id)
@@ -317,6 +312,10 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
     </div>
   )
 }
+
+
+
+
 
 
 
