@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { BackButton } from "@/components/ui/BackButton"
 import { Card, SectionHeader } from "@/components/ui"
@@ -17,7 +17,7 @@ export default async function StockPage() {
   if (!["admin","administrativo"].includes(role)) redirect("/dashboard")
   const isAdmin = role === "admin"
 
-  const [acopioRes, operativoRes, transfersRes, dispensesRes] = await Promise.all([
+  const [acopioRes, operativoRes, transfersRes, dispensesRes, auditRes] = await Promise.all([
     supabase.from("stock_positions")
       .select("id, available_grams, reserved_grams, lot:lots(id, lot_code, net_grams, genetic:genetics(name))")
       .eq("storage_type", "acopio")
@@ -35,12 +35,16 @@ export default async function StockPage() {
       .select("id, dispensed_at, grams, patient:patients(full_name), lot:lots(lot_code, genetic:genetics(name)), performed_by_profile:profiles(full_name)")
       .order("dispensed_at", { ascending: false })
       .limit(10),
+    supabase.from("v_stock_movements_unified")
+      .select("tipo, id, fecha, grams, lot_code, genetic_name, patient_name, operario, detalle, descripcion")
+      .limit(50),
   ])
 
   const acopio = (acopioRes.data ?? []) as any[]
   const operativo = (operativoRes.data ?? []) as any[]
   const transfers = (transfersRes.data ?? []) as any[]
   const dispenses = (dispensesRes.data ?? []) as any[]
+  const auditMovements = (auditRes.data ?? []) as any[]
 
   const totalAcopio = acopio.reduce((acc, s) => acc + (s.available_grams ?? 0), 0)
   const totalOperativo = operativo.reduce((acc, s) => acc + (s.available_grams ?? 0), 0)
@@ -254,7 +258,7 @@ export default async function StockPage() {
         )}
       </Card>
 
-      {/* Historial de transferencias — timeline por fecha */}
+      {/* Historial de transferencias â€” timeline por fecha */}
       <Card padding={false}>
         <div className="px-5 pt-5 pb-4">
           <SectionHeader title="Historial de transferencias a operativo" />
@@ -278,14 +282,14 @@ export default async function StockPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-bold text-[#2d6a1f]">{formatGrams(t.grams)}</p>
-                          <span className="text-xs text-slate-400">→ operativo</span>
+                          <span className="text-xs text-slate-400">â†’ operativo</span>
                           <span className="text-xs bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8] rounded px-1.5 py-0.5 font-mono">
                             {t.lot?.lot_code}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <p className="text-xs text-slate-500">{t.lot?.genetic?.name ?? "-"}</p>
-                          {t.notes && <p className="text-xs text-slate-400 italic">· {t.notes}</p>}
+                          {t.notes && <p className="text-xs text-slate-400 italic">Â· {t.notes}</p>}
                         </div>
                       </div>
                     </div>
@@ -326,7 +330,7 @@ export default async function StockPage() {
                     <p className="text-sm font-medium text-slate-900">{d.patient?.full_name ?? "-"}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs font-mono text-slate-400">{d.lot?.lot_code}</span>
-                      <span className="text-xs text-slate-400">· {d.lot?.genetic?.name ?? "-"}</span>
+                      <span className="text-xs text-slate-400">Â· {d.lot?.genetic?.name ?? "-"}</span>
                     </div>
                   </div>
                 </div>
@@ -339,6 +343,54 @@ export default async function StockPage() {
           </div>
         </Card>
       )}
+
+      {/* Auditoria unificada */}
+      {isAdmin && auditMovements.length > 0 && (
+        <Card padding={false}>
+          <div className="px-5 pt-5 pb-4">
+            <SectionHeader title="Auditoria de movimientos" />
+            <p className="text-xs text-slate-500 mt-1">Todos los movimientos de stock en orden cronologico</p>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {auditMovements.map((m: any) => (
+              <div key={m.id} className="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${
+                    m.tipo === "transferencia" ? "bg-[#2d5a27]" :
+                    m.tipo === "dispensa" ? "bg-red-400" : "bg-amber-400"
+                  }`} />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                        m.tipo === "transferencia" ? "bg-[#edf7e8] text-[#2d6a1f] border-[#b8daa8]" :
+                        m.tipo === "dispensa" ? "bg-red-50 text-red-700 border-red-200" :
+                        "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}>{m.tipo}</span>
+                      <span className="text-xs font-mono text-slate-500">{m.lot_code}</span>
+                      <span className="text-xs text-slate-400">{m.genetic_name ?? "-"}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {m.patient_name && <p className="text-xs text-slate-500">{m.patient_name}</p>}
+                      {m.detalle && <p className="text-xs text-slate-400 italic">· {m.detalle}</p>}
+                      <p className="text-xs text-slate-400">· {m.operario ?? "-"}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right shrink-0 ml-4">
+                  <p className={`text-sm font-bold ${m.tipo === "dispensa" ? "text-red-600" : "text-[#2d6a1f]"}`}>
+                    {m.tipo === "dispensa" ? "-" : "+"}{formatGrams(m.grams)}
+                  </p>
+                  <p className="text-xs text-slate-400">{formatDate(m.fecha)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   )
 }
+
+
+
+

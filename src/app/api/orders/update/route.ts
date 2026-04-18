@@ -11,7 +11,6 @@ export async function POST(request: Request) {
 
   const body = await request.json()
   const { order_id, status, lot_id } = body
-
   if (!order_id || !status) return NextResponse.json({ error: "Faltan datos" }, { status: 400 })
 
   const service = await createServiceClient()
@@ -19,58 +18,105 @@ export async function POST(request: Request) {
   const { data: order } = await service.from("orders").select("*").eq("id", order_id).single()
   if (!order) return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 })
 
-  // Solo staff puede cambiar estado salvo cancelar
-  if (!isStaff && status !== "cancelado") {
+  if (!isStaff && status !== "cancelado")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
-  }
 
-  // Solo el paciente dueno puede cancelar su pedido
   if (status === "cancelado" && !isStaff) {
     const { data: patientProfile } = await service.from("profiles").select("patient_id").eq("id", user.id).single()
-    if (patientProfile?.patient_id !== order.patient_id) {
+    if (patientProfile?.patient_id !== order.patient_id)
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
-    }
   }
 
-  const updateData: any = {
-    status,
-    updated_at: new Date().toISOString()
-  }
-
+  const updateData: any = { status, updated_at: new Date().toISOString() }
   if (lot_id) updateData.lot_id = lot_id
   if (status === "empaquetado") { updateData.packed_by = user.id; updateData.packed_at = new Date().toISOString() }
+
+  // Al entregar — crear dispensas Y descontar stock operativo
   if (status === "entregado") {
     updateData.delivered_by = user.id
     updateData.delivered_at = new Date().toISOString()
-    // Crear dispensas desde los order_items
+
     const { data: items } = await service
       .from("order_items")
       .select("grams, lot_id, genetic_id")
       .eq("order_id", order_id)
+
     if (items && items.length > 0) {
-      const dispenses = items.map((item: any) => ({
-        patient_id: order.patient_id,
-        lot_id: item.lot_id,
-        grams: item.grams,
-        product_desc: "flor seca",
-        performed_by: user.id,
-        dispensed_at: new Date().toISOString(),
-        source: "pedido"
-      }))
-      await service.from("dispenses").insert(dispenses)
+      for (const item of items) {
+        if (!item.lot_id || !item.grams) continue
+
+        // Verificar stock operativo
+        const { data: stockOp } = await service
+          .from("stock_positions")
+          .select("id, available_grams")
+          .eq("lot_id", item.lot_id)
+          .eq("storage_type", "operativo")
+          .maybeSingle()
+
+        if (!stockOp || stockOp.available_grams < item.grams)
+          return NextResponse.json({
+            error: `Stock operativo insuficiente para entregar. Disponible: ${stockOp?.available_grams ?? 0}g`
+          }, { status: 400 })
+
+        // Crear dispensa
+        const { data: dispense } = await service.from("dispenses").insert({
+          patient_id: order.patient_id,
+          lot_id: item.lot_id,
+          grams: item.grams,
+          product_desc: "flor seca",
+          performed_by: user.id,
+          dispensed_at: new Date().toISOString(),
+          source: "pedido"
+        }).select().single()
+
+        // Descontar stock operativo
+        await service.from("stock_positions")
+          .update({ available_grams: stockOp.available_grams - item.grams, updated_at: new Date().toISOString() })
+          .eq("id", stockOp.id)
+
+        // Registrar movimiento
+        if (dispense) {
+          await service.from("stock_movements").insert({
+            lot_id: item.lot_id,
+            movement_type: "dispensa",
+            grams: item.grams,
+            dispense_id: dispense.id,
+            reference_note: `Entrega de pedido ${order_id}`,
+            performed_by: user.id,
+            performed_at: new Date().toISOString()
+          }).then(() => {})
+        }
+      }
     }
   }
 
-  // Si se cancela, liberar reserva de stock
-  if (status === "cancelado" && order.lot_id) {
-    await service.from("stock_positions")
-      .update({ reserved_grams: service.rpc("greatest", {}) })
-      .eq("lot_id", order.lot_id)
+  // Al cancelar — liberar reserva si hay stock reservado
+  if (status === "cancelado") {
+    const { data: items } = await service
+      .from("order_items")
+      .select("grams, lot_id")
+      .eq("order_id", order_id)
 
-    await service.rpc("release_stock_reservation", {
-      p_lot_id: order.lot_id,
-      p_grams: order.grams
-    }).then(() => {})
+    for (const item of (items ?? [])) {
+      if (!item.lot_id) continue
+      const { data: stockOp } = await service
+        .from("stock_positions")
+        .select("id, available_grams, reserved_grams")
+        .eq("lot_id", item.lot_id)
+        .eq("storage_type", "operativo")
+        .maybeSingle()
+
+      if (stockOp && stockOp.reserved_grams > 0) {
+        const release = Math.min(item.grams, stockOp.reserved_grams)
+        await service.from("stock_positions")
+          .update({
+            reserved_grams: stockOp.reserved_grams - release,
+            available_grams: stockOp.available_grams + release,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", stockOp.id)
+      }
+    }
   }
 
   const { error } = await service.from("orders").update(updateData).eq("id", order_id)
@@ -87,27 +133,21 @@ export async function POST(request: Request) {
     performed_at: new Date().toISOString()
   }).then(() => {})
 
-  // Enviar notificacion push al staff
   const statusLabels: Record<string, string> = {
-    nuevo: "Nuevo pedido",
-    pendiente_aprobacion: "Pendiente de aprobacion",
-    aprobado: "Pedido aprobado",
-    en_preparacion: "En preparacion",
-    empaquetado: "Listo para entregar",
-    entregado: "Entregado",
-    cancelado: "Cancelado"
+    nuevo: "Nuevo pedido", pendiente_aprobacion: "Pendiente de aprobacion",
+    aprobado: "Pedido aprobado", en_preparacion: "En preparacion",
+    empaquetado: "Listo para entregar", entregado: "Entregado", cancelado: "Cancelado"
   }
-  const patientName = order.patient_id ? `Pedido de paciente` : "Pedido"
+
   await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.circuloesmeralda.com.ar"}/api/push/send`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       title: statusLabels[status] ?? status,
       body: `Estado actualizado a: ${statusLabels[status] ?? status}`,
-      order_id: order_id
+      order_id
     })
   }).catch(() => {})
 
   return NextResponse.json({ success: true })
 }
-

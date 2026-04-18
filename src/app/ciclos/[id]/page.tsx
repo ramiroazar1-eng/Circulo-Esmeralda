@@ -10,6 +10,7 @@ import CloseCycleButton from "./CloseCycleButton"
 import DailyClosureModal from "./DailyClosureModal"
 import QuickActionsPanel from "./QuickActionsPanel"
 import CloneLotButton from "@/app/trazabilidad/CloneLotButton"
+import NewMotherLotButton from "./NewMotherLotButton"
 import PeriodPdfButton from "./PeriodPdfButton"
 
 const ETAPAS = [
@@ -48,7 +49,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const isAdmin = role === "admin"
   const canEdit = ["admin","biologo","director_de_cultivo","administrativo"].includes(role)
 
-  const [cycleRes, expensesRes, eventsRes, roomsRes, closuresRes, productsRes] = await Promise.all([
+  const [cycleRes, expensesRes, eventsRes, roomsRes, closuresRes, productsRes, geneticsRes] = await Promise.all([
     supabase.from("production_cycles")
       .select("*, lots(id, lot_code, status, net_grams, gross_grams, seedling_date, veg_date, flower_date, harvest_date, drying_start_date, drying_days, curing_start_date, curing_days, plant_count, genetic:genetics(name), room:rooms(name))")
       .eq("id", id).single(),
@@ -66,6 +67,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
       .eq("cycle_id", id)
       .order("closure_date", { ascending: false }),
     supabase.from("v_supply_stock").select("id, name, unit, stock_actual, last_unit_cost").eq("is_active", true).order("name"),
+    supabase.from("genetics").select("id, name").eq("is_active", true).order("name"),
   ])
 
   if (!cycleRes.data) notFound()
@@ -76,6 +78,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   const rooms = (roomsRes.data ?? []) as any[]
   const closures = (closuresRes.data ?? []) as any[]
   const products = (productsRes.data ?? []) as any[]
+  const geneticOptions = (geneticsRes.data ?? []) as { id: string; name: string }[]
 
   const totalNet = lots.reduce((acc: number, l: any) => acc + (l.net_grams ?? 0), 0)
   const totalGross = lots.reduce((acc: number, l: any) => acc + (l.gross_grams ?? 0), 0)
@@ -167,6 +170,9 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
           {canEdit && <PeriodPdfButton cycleId={id} />}
           {cycle.status === "activo" && ["admin","biologo","director_de_cultivo","administrativo"].includes(role) && (
             <DailyClosureModal cycleId={id} closures={closures} />
+          )}
+          {isReproductivo && cycle.status === "activo" && canEdit && (
+            <NewMotherLotButton cycleId={id} genetics={geneticOptions} rooms={rooms} />
           )}
           {cycle.status === "activo" && isAdmin && <CloseCycleButton cycleId={id} cycleName={cycle.name} cycleType={cycle.cycle_type ?? "productivo"} />}
           {isAdmin && cycle.status === "activo" && <NewExpenseModal cycleId={id} />}
@@ -413,6 +419,14 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
     </div>
   )
 }
+
+
+
+
+
+
+
+
 
 
 

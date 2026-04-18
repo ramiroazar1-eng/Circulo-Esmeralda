@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { QrCode } from "lucide-react"
@@ -21,7 +21,6 @@ export default async function DispensasPage() {
   const { data: patients } = await supabase
     .from("patients")
     .select("id, full_name, dni")
-    .eq("status", "activo")
     .is("deleted_at", null)
     .order("full_name")
 
@@ -73,12 +72,12 @@ export default async function DispensasPage() {
                   <td className="whitespace-nowrap">{formatDateTime(d.dispensed_at)}</td>
                   <td>
                     <Link href={`/pacientes/${d.patient?.id}`} className="font-medium text-slate-900 hover:underline">
-                      {d.patient?.full_name ?? "—"}
+                      {d.patient?.full_name ?? "â€”"}
                     </Link>
                   </td>
-                  <td className="font-mono text-xs">{d.patient?.dni ?? "—"}</td>
+                  <td className="font-mono text-xs">{d.patient?.dni ?? "â€”"}</td>
                   <td>{d.product_desc}</td>
-                  <td className="font-mono text-xs">{d.lot?.lot_code ?? "—"}</td>
+                  <td className="font-mono text-xs">{d.lot?.lot_code ?? "â€”"}</td>
                   <td className="font-medium tabular-nums">{formatGrams(d.grams)}</td>
                   <td>
                   {d.source === "pedido" ? (
@@ -89,7 +88,7 @@ export default async function DispensasPage() {
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#edf7e8] text-[#2d6a1f] border border-[#b8daa8]">Presencial</span>
                   )}
                 </td>
-                <td className="text-slate-500">{d.performed_by_profile?.full_name ?? "—"}</td>
+                <td className="text-slate-500">{d.performed_by_profile?.full_name ?? "â€”"}</td>
                 </tr>
               ))}
             </tbody>
@@ -99,3 +98,4 @@ export default async function DispensasPage() {
     </div>
   )
 }
+

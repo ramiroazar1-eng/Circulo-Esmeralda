@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
+﻿import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { apiLimiter } from "@/lib/ratelimit"
 
@@ -31,6 +31,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Sin permisos para crear pedidos en nombre de otro paciente" }, { status: 403 })
     }
   }
+
+  // Verificar REPROCANN del paciente
+  const { data: patientCheck } = await service
+    .from("patients")
+    .select("reprocann_status, reprocann_expiry, full_name")
+    .eq("id", patient_id)
+    .single()
+
+  const reprocannWarning = patientCheck?.reprocann_status === "vencido"
+    ? `ATENCION: El REPROCANN de ${patientCheck.full_name} esta vencido desde ${patientCheck.reprocann_expiry}. El pedido se registra pero debe regularizarse.`
+    : null
 
   const totalGrams = items.reduce((acc: number, item: any) => acc + parseFloat(item.grams), 0)
 
@@ -120,5 +131,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: itemsError.message }, { status: 400 })
   }
 
-  return NextResponse.json({ success: true, data: order })
+  return NextResponse.json({ success: true, data: order, warning: reprocannWarning })
 }
+

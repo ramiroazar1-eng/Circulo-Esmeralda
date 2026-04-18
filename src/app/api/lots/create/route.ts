@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
+﻿import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
@@ -7,22 +7,39 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
   const body = await request.json()
-  const { genetic_id, room_id, seedling_date, notes, plant_count } = body
+  const { genetic_id, room_id, seedling_date, notes, plant_count, cycle_id: forced_cycle_id, lot_subtype } = body
 
   const service = await createServiceClient()
 
-  // Buscar ciclo activo
-  const { data: activeCycle } = await service
-    .from("production_cycles")
-    .select("id, name")
-    .eq("status", "activo")
-    .order("start_date", { ascending: false })
-    .limit(1)
-    .single()
+  let activeCycle: any = null
 
-  if (!activeCycle) return NextResponse.json({ error: "No hay un ciclo activo. Crea un ciclo de produccion primero." }, { status: 400 })
+  // Si se pasa cycle_id especifico, usarlo directamente
+  if (forced_cycle_id) {
+    const { data: fc } = await service
+      .from("production_cycles")
+      .select("id, name, cycle_type")
+      .eq("id", forced_cycle_id)
+      .single()
+    activeCycle = fc
+  }
 
-  // Obtener nombre de sala y genetica para el codigo
+  // Si no, buscar ciclo productivo activo
+  if (!activeCycle) {
+    const { data: fc } = await service
+      .from("production_cycles")
+      .select("id, name, cycle_type")
+      .eq("status", "activo")
+      .eq("cycle_type", "productivo")
+      .order("start_date", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    activeCycle = fc
+  }
+
+  if (!activeCycle) return NextResponse.json({
+    error: "No hay un ciclo productivo activo. Crea un ciclo productivo primero."
+  }, { status: 400 })
+
   const [geneticRes, roomRes] = await Promise.all([
     genetic_id ? service.from("genetics").select("name").eq("id", genetic_id).single() : Promise.resolve({ data: null }),
     room_id ? service.from("rooms").select("name").eq("id", room_id).single() : Promise.resolve({ data: null }),
@@ -31,7 +48,6 @@ export async function POST(request: Request) {
   const geneticName = (geneticRes as any).data?.name ?? null
   const roomName = (roomRes as any).data?.name ?? null
 
-  // Generar codigo con nuevo formato L-AÃ±o-Sala-Genetica-Nro
   const { data: lotCode } = await service.rpc("generate_lot_code", {
     p_year: new Date().getFullYear(),
     p_room_name: roomName,
@@ -49,6 +65,7 @@ export async function POST(request: Request) {
     plant_count: plant_count || null,
     created_by: user.id,
     cycle_id: activeCycle.id,
+    lot_subtype: lot_subtype || "normal",
   }).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })

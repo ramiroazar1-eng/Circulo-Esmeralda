@@ -37,7 +37,6 @@ export async function POST(request: Request) {
   const lot_subtype = destination === "madre" ? "madre" : "esqueje"
 
   if (destination !== "madre") {
-    // Buscar ciclo productivo activo
     const { data: activeCycle } = await service
       .from("production_cycles")
       .select("id")
@@ -47,7 +46,12 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle()
 
-    if (activeCycle) cycle_id = activeCycle.id
+    if (!activeCycle) {
+      return NextResponse.json({
+        error: "No hay un ciclo productivo activo. Crea un ciclo productivo antes de sacar esquejes para flora o vege."
+      }, { status: 400 })
+    }
+    cycle_id = activeCycle.id
   }
 
   // Status inicial segun destino
@@ -86,3 +90,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true, data: newLot, clone_code: cloneCode })
 }
+

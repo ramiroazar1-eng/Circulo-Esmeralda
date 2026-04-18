@@ -1,8 +1,7 @@
-"use client"
+﻿"use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, X, Trash2 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { Button, Alert } from "@/components/ui"
 import { formatGrams } from "@/lib/utils"
 
@@ -57,24 +56,20 @@ export default function NewDispenseModal({ patients, lots }: { patients: Patient
     if (!patientId) { setError("Selecciona un paciente"); return }
     if (cart.length === 0) { setError("Agrega al menos un lote"); return }
     setLoading(true); setError(null)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
 
-    // Insertar una dispensa por cada item del carrito
-    for (const item of cart) {
-      const { error: insertError } = await supabase.from("dispenses").insert({
+    const res = await fetch("/api/dispenses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         patient_id: patientId,
-        lot_id: item.lot_id,
-        grams: item.grams,
+        items: cart.map(c => ({ lot_id: c.lot_id, grams: c.grams })),
         product_desc: productDesc || "flor seca",
         observations: observations || null,
-        dispensed_at: dispensedAt || new Date().toISOString(),
-        performed_by: user.id
+        dispensed_at: dispensedAt || new Date().toISOString()
       })
-      if (insertError) { setError(insertError.message); setLoading(false); return }
-    }
-
+    })
+    const data = await res.json()
+    if (!res.ok) { setError(data.error ?? "Error al registrar dispensa"); setLoading(false); return }
     setOpen(false); reset(); router.refresh()
   }
 
@@ -93,7 +88,6 @@ export default function NewDispenseModal({ patients, lots }: { patients: Patient
           </div>
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
             {error && <Alert variant="error">{error}</Alert>}
-
             <div>
               <label className="label-ong">Paciente *</label>
               <select value={patientId} onChange={e => setPatientId(e.target.value)} required className="input-ong">
@@ -101,7 +95,6 @@ export default function NewDispenseModal({ patients, lots }: { patients: Patient
                 {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} ({p.dni})</option>)}
               </select>
             </div>
-
             <div className="border border-slate-200 rounded-lg p-3 space-y-3">
               <p className="text-xs font-semibold text-slate-600">Agregar lote</p>
               <div className="grid grid-cols-2 gap-2">
@@ -116,7 +109,6 @@ export default function NewDispenseModal({ patients, lots }: { patients: Patient
                 </button>
               </div>
             </div>
-
             {cart.length > 0 && (
               <div className="border border-slate-200 rounded-lg overflow-hidden">
                 {cart.map(item => (
@@ -136,7 +128,6 @@ export default function NewDispenseModal({ patients, lots }: { patients: Patient
                 </div>
               </div>
             )}
-
             <div className="grid grid-cols-2 gap-3">
               <div><label className="label-ong">Producto</label><input value={productDesc} onChange={e => setProductDesc(e.target.value)} className="input-ong" /></div>
               <div><label className="label-ong">Fecha y hora</label><input type="datetime-local" value={dispensedAt} onChange={e => setDispensedAt(e.target.value)} className="input-ong" /></div>
