@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+﻿import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
 import { AlertCircle, Clock } from "lucide-react"
 import { formatGrams } from "@/lib/utils"
@@ -40,7 +40,7 @@ export default async function DashboardStats({ role }: { role: string }) {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {lowStockItems.map((s: any) => (
                     <Link key={s.id} href={`/insumos/${s.id}`} className="text-xs bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5 hover:bg-amber-200 transition-colors">
-                      {s.name} — {s.stock_actual} {s.unit}
+                      {s.name} â€” {s.stock_actual} {s.unit}
                     </Link>
                   ))}
                 </div>
@@ -55,7 +55,7 @@ export default async function DashboardStats({ role }: { role: string }) {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {upcomingEvents.map((e: any) => (
                     <span key={e.id} className="text-xs bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5">
-                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} — {e.room?.name ?? e.lot?.lot_code ?? "General"}
+                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} â€” {e.room?.name ?? e.lot?.lot_code ?? "General"}
                     </span>
                   ))}
                 </div>
@@ -65,12 +65,12 @@ export default async function DashboardStats({ role }: { role: string }) {
         </div>
       )}
 
-      {/* Métricas */}
+      {/* MÃ©tricas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {isAdmin && compliance && (
           <div className="bg-white border border-slate-200 rounded-xl p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1">Pacientes</p>
-            <p className="text-2xl font-bold text-slate-900">{compliance.total_patients ?? 0}</p>
+            <p className="text-2xl font-bold text-slate-900">{compliance.total_activos ?? 0}</p>
             <div className="flex flex-wrap gap-1 mt-1.5">
               {(compliance.reprocann_proximo ?? 0) > 0 && (
                 <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5">
@@ -100,3 +100,4 @@ export default async function DashboardStats({ role }: { role: string }) {
     </div>
   )
 }
+
