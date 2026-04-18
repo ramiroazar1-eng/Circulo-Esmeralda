@@ -16,7 +16,7 @@ const TIPO_CONFIG: Record<string, { label: string; color: string; bg: string; bo
   incidente:    { label: "Incidente",              color: "#991b1b", bg: "#fef2f2", border: "#fecaca", icon: AlertTriangle },
 }
 
-export default async function BiologoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CultivoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -214,3 +214,4 @@ export default async function BiologoPage({ params }: { params: Promise<{ id: st
     </div>
   )
 }
+

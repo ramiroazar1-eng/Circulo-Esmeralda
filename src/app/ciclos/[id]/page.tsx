@@ -160,7 +160,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
             Ver linea de tiempo
           </Link>
           {["admin","biologo","director_de_cultivo","administrativo"].includes(role) && (
-            <Link href={`/ciclos/${id}/biologo`} className="inline-flex items-center gap-1.5 text-xs bg-[#edf7e8] border border-[#b8daa8] hover:border-[#4d8a3d] text-[#2d5a27] font-medium rounded-lg px-3 py-2 transition-colors">
+            <Link href={`/ciclos/${id}/cultivo`} className="inline-flex items-center gap-1.5 text-xs bg-[#edf7e8] border border-[#b8daa8] hover:border-[#4d8a3d] text-[#2d5a27] font-medium rounded-lg px-3 py-2 transition-colors">
               Trazabilidad director de cultivo
             </Link>
           )}
@@ -413,6 +413,7 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
     </div>
   )
 }
+
 
 
 
