@@ -1,8 +1,7 @@
-"use client"
+﻿"use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Pencil, X, ChevronRight, CheckCircle2 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { Button, Alert } from "@/components/ui"
 
 interface Props {
@@ -14,7 +13,7 @@ interface Props {
 const ETAPAS = [
   { key: "seedling_date",    label: "Plantines",    desc: "Fecha en que se colocaron los plantines" },
   { key: "veg_date",         label: "Vegetativo",   desc: "Inicio del periodo vegetativo" },
-  { key: "flower_date",      label: "Floracion",    desc: "Cambio a 12/12 — inicio de floracion" },
+  { key: "flower_date",      label: "Floracion",    desc: "Cambio a 12/12 â€” inicio de floracion" },
   { key: "harvest_date",     label: "Cosecha",      desc: "Fecha de corte" },
   { key: "drying_start_date",label: "Secado",       desc: "Inicio del secado" },
   { key: "curing_start_date",label: "Curado",       desc: "Inicio del curado" },
@@ -41,9 +40,9 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setLoading(true); setError(null)
     const form = new FormData(e.currentTarget)
-    const supabase = createClient()
 
     const updates: any = {
+      lot_id:             lot.id,
       genetic_id:         form.get("genetic_id") || null,
       room_id:            form.get("room_id") || null,
       seedling_date:      form.get("seedling_date") || null,
@@ -54,18 +53,21 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
       curing_start_date:  form.get("curing_start_date") || null,
       curing_days:        parseInt(form.get("curing_days") as string) || null,
       notes:              form.get("notes") || null,
-      updated_at:         new Date().toISOString(),
     }
 
-    // Gramos solo si ya paso cosecha
     if (showGramos) {
       updates.gross_grams = parseFloat(form.get("gross_grams") as string) || null
       updates.net_grams   = parseFloat(form.get("net_grams") as string) || null
       updates.waste_grams = parseFloat(form.get("waste_grams") as string) || null
     }
 
-    const { error: err } = await supabase.from("lots").update(updates).eq("id", lot.id)
-    if (err) { setError(err.message); setLoading(false); return }
+    const res = await fetch("/api/lots/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates)
+    })
+    const data = await res.json()
+    if (!res.ok) { setError(data.error ?? "Error al guardar"); setLoading(false); return }
     setOpen(false); router.refresh()
   }
 
@@ -140,7 +142,7 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
                         }
                         <span className={`text-sm font-semibold ${completed ? "text-green-700" : isNext ? "text-amber-700" : "text-slate-600"}`}>
                           {etapa.label}
-                          {isNext && !completed && <span className="ml-2 text-xs font-normal text-amber-600">— siguiente paso</span>}
+                          {isNext && !completed && <span className="ml-2 text-xs font-normal text-amber-600">â€” siguiente paso</span>}
                         </span>
                       </div>
                       <div>
@@ -166,7 +168,7 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
               </div>
             </div>
 
-            {/* Gramos — solo cuando ya se secó */}
+            {/* Gramos â€” solo cuando ya se secÃ³ */}
             {showGramos && (
               <div className="border-t border-[#eef5ea] pt-4">
                 <p className="text-[10px] font-bold text-[#5a8a52] uppercase tracking-widest mb-3">Produccion</p>
@@ -194,3 +196,4 @@ export default function EditLotModal({ lot, genetics, rooms }: Props) {
     </>
   )
 }
+

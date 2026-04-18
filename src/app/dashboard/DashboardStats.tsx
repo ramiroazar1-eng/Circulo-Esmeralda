@@ -11,14 +11,16 @@ export default async function DashboardStats({ role }: { role: string }) {
 
   const [complianceRaw, stockData, activePlantsRes, plannedEvents, supplyStockData] = await Promise.all([
     supabase.from("v_compliance_summary").select("*").single(),
-    supabase.from("stock_positions").select("available_grams"),
+    supabase.from("stock_positions").select("available_grams, storage_type"),
     supabase.from("v_active_plants").select("room_id, room_name, plant_count, plants_veg, plants_flower, plants_seedling"),
     supabase.from("planned_events").select("id, event_type, planned_date, notes, lot:lots(lot_code), room:rooms(name)").eq("status", "pendiente").gte("planned_date", new Date().toISOString().split("T")[0]).lte("planned_date", new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]).order("planned_date", { ascending: true }).limit(5),
     supabase.from("v_supply_stock").select("id, name, unit, stock_actual, stock_alert_threshold").eq("is_active", true),
   ])
 
   const compliance = complianceRaw.data as ComplianceSummary | null
-  const totalStock = (stockData.data ?? []).reduce((acc, s) => acc + (s.available_grams ?? 0), 0)
+  const stockItems = (stockData.data ?? []) as any[]
+  const totalAcopio = stockItems.filter(s => s.storage_type === "acopio").reduce((acc, s) => acc + (s.available_grams ?? 0), 0)
+  const totalOperativo = stockItems.filter(s => s.storage_type === "operativo").reduce((acc, s) => acc + (s.available_grams ?? 0), 0)
   const activePlants = (activePlantsRes.data ?? []) as any[]
   const totalActivePlants = activePlants.reduce((acc: number, r: any) => acc + (r.plant_count ?? 0), 0)
   const totalVeg = activePlants.reduce((acc: number, r: any) => acc + (r.plants_veg ?? 0), 0)
@@ -40,7 +42,7 @@ export default async function DashboardStats({ role }: { role: string }) {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {lowStockItems.map((s: any) => (
                     <Link key={s.id} href={`/insumos/${s.id}`} className="text-xs bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5 hover:bg-amber-200 transition-colors">
-                      {s.name} â€” {s.stock_actual} {s.unit}
+                      {s.name} — {s.stock_actual} {s.unit}
                     </Link>
                   ))}
                 </div>
@@ -55,7 +57,7 @@ export default async function DashboardStats({ role }: { role: string }) {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {upcomingEvents.map((e: any) => (
                     <span key={e.id} className="text-xs bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5">
-                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} â€” {e.room?.name ?? e.lot?.lot_code ?? "General"}
+                      {new Date(e.planned_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} — {e.room?.name ?? e.lot?.lot_code ?? "General"}
                     </span>
                   ))}
                 </div>
@@ -65,32 +67,49 @@ export default async function DashboardStats({ role }: { role: string }) {
         </div>
       )}
 
-      {/* MÃ©tricas */}
+      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {isAdmin && compliance && (
-          <div className="bg-white border border-slate-200 rounded-xl p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1">Pacientes</p>
-            <p className="text-2xl font-bold text-slate-900">{compliance.total_activos ?? 0}</p>
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {(compliance.reprocann_proximo ?? 0) > 0 && (
-                <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5">
-                  REPROCANN proximo: {compliance.reprocann_proximo}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Pacientes */}
         <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1">Stock</p>
-          <p className="text-2xl font-bold text-slate-900">{formatGrams(totalStock)}</p>
-          <p className="text-xs text-slate-400 mt-0.5">disponible</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1">Pacientes</p>
+          <p className="text-2xl font-bold text-slate-900">{compliance?.total_activos ?? 0}</p>
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {(compliance?.criticos ?? 0) > 0 && (
+              <span className="text-xs bg-red-50 text-red-700 border border-red-200 rounded-full px-2 py-0.5">
+                {compliance?.criticos} criticos
+              </span>
+            )}
+            {(compliance?.en_atencion ?? 0) > 0 && (
+              <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
+                {compliance?.en_atencion} atencion
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Stock acopio - solo admin */}
+        {isAdmin && (
+          <Link href="/stock" className="bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-colors">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1">Stock acopio</p>
+            <p className="text-2xl font-bold text-slate-900">{formatGrams(totalAcopio)}</p>
+            <p className="text-xs text-slate-400 mt-0.5">bajo llave</p>
+          </Link>
+        )}
+
+        {/* Stock operativo */}
+        <Link href="/stock" className="bg-white border border-[#ddecd8] rounded-xl p-4 hover:border-[#4d8a3d] transition-colors">
+          <p className="text-xs font-medium uppercase tracking-wide text-[#6b8c65] mb-1">Stock operativo</p>
+          <p className="text-2xl font-bold text-[#1a2e1a]">{formatGrams(totalOperativo)}</p>
+          <p className="text-xs text-[#9ab894] mt-0.5">para dispensar</p>
+        </Link>
+
+        {/* Plantas activas */}
         {canSeeCultivo && (
           <div className="bg-white border border-[#ddecd8] rounded-xl p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-[#6b8c65] mb-1">Plantas activas</p>
             <p className="text-2xl font-bold text-[#1a2e1a]">{totalActivePlants}</p>
             <div className="flex gap-2 mt-1.5 flex-wrap">
-              {totalSeedling > 0 && <span className="text-xs text-slate-500">{totalSeedling} plantines</span>}
+              {totalSeedling > 0 && <span className="text-xs text-slate-500">{totalSeedling} pl</span>}
               {totalVeg > 0 && <span className="text-xs text-[#2d6a1f] font-medium">{totalVeg} vege</span>}
               {totalFlower > 0 && <span className="text-xs text-amber-600 font-medium">{totalFlower} flora</span>}
             </div>
@@ -100,4 +119,3 @@ export default async function DashboardStats({ role }: { role: string }) {
     </div>
   )
 }
-
