@@ -9,6 +9,7 @@ import PlanRequestWidget from "./PlanRequestWidget"
 import FirmaDocumento from "./FirmaDocumento"
 import StatsGamificados from "./StatsGamificados"
 import CuotasWidget from "./CuotasWidget"
+import ConfirmarRetiro from "./ConfirmarRetiro"
 
 const MONTHS_SHORT = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
@@ -21,6 +22,7 @@ export default function MiPerfilPage() {
   const [currentPayment, setCurrentPayment] = useState<any>(null)
   const [chartData, setChartData] = useState<any[]>([])
   const [docs, setDocs] = useState<any[]>([])
+  const [pendingConfirmations, setPendingConfirmations] = useState<any[]>([])
   const [statsOpen, setStatsOpen] = useState(false)
   const router = useRouter()
 
@@ -51,15 +53,23 @@ export default function MiPerfilPage() {
         const oneYearAgo = new Date()
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
 
-        const [dispensesRes, docsRes, paymentRes] = await Promise.all([
+        const [dispensesRes, docsRes, paymentRes, pendingConfirmationsRes] = await Promise.all([
           supabase.from("dispenses").select("id, dispensed_at, grams, lot:lots(lot_code, genetic:genetics(name))").eq("patient_id", pat.id).gte("dispensed_at", oneYearAgo.toISOString()).order("dispensed_at", { ascending: false }).limit(20),
           supabase.from("patient_documents").select("id, status, doc_type:patient_document_types(name, is_mandatory)").eq("patient_id", pat.id),
-          supabase.from("membership_payments").select("id, amount, payment_date, payment_method").eq("patient_id", pat.id).eq("period_month", now.getMonth() + 1).eq("period_year", now.getFullYear()).maybeSingle()
+          supabase.from("membership_payments").select("id, amount, payment_date, payment_method").eq("patient_id", pat.id).eq("period_month", now.getMonth() + 1).eq("period_year", now.getFullYear()).maybeSingle(),
+          supabase.from("dispense_confirmations").select("id, dispense_id, status, dispense:dispenses(id, grams, lot:lots(lot_code, genetic:genetics(name)))").eq("patient_id", pat.id).eq("status", "pendiente")
         ])
 
         const dispList = dispensesRes.data ?? []
         setDispenses(dispList)
         setDocs(docsRes.data ?? [])
+        setPendingConfirmations((pendingConfirmationsRes.data ?? []).map((c: any) => ({
+          id: c.id,
+          dispense_id: c.dispense_id,
+          grams: c.dispense?.grams ?? 0,
+          genetic_name: c.dispense?.lot?.genetic?.name ?? "Sin genetica",
+          lot_code: c.dispense?.lot?.lot_code ?? "-"
+        })))
         setCurrentPayment(paymentRes.data)
 
         const chart = Array.from({ length: 12 }, (_, i) => {
@@ -210,5 +220,11 @@ export default function MiPerfilPage() {
     </div>
   )
 }
+
+
+
+
+
+
 
 

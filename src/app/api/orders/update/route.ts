@@ -31,6 +31,33 @@ export async function POST(request: Request) {
   if (lot_id) updateData.lot_id = lot_id
   if (status === "empaquetado") { updateData.packed_by = user.id; updateData.packed_at = new Date().toISOString() }
 
+  // Si se aprueba un pedido de delivery, generar codigo de 4 digitos
+  if (status === "aprobado" && order.delivery_type === "envio") {
+    const { data: code } = await service.rpc("generate_delivery_code")
+    if (code) {
+      updateData.delivery_code = code
+      // Mandar codigo al paciente por push
+      const { data: patientProfile } = await service
+        .from("profiles")
+        .select("id")
+        .eq("patient_id", order.patient_id)
+        .eq("role", "paciente")
+        .maybeSingle()
+      if (patientProfile) {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/push/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "Tu pedido fue aprobado",
+            body: `Tu codigo de entrega es: ${code}. Mostralo al delivery al recibir tu pedido.`,
+            url: "/mi-perfil",
+            user_id: patientProfile.id
+          })
+        }).catch(() => {})
+      }
+    }
+  }
+
   // Al entregar — crear dispensas Y descontar stock operativo
   if (status === "entregado") {
     updateData.delivered_by = user.id
@@ -151,3 +178,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true })
 }
+

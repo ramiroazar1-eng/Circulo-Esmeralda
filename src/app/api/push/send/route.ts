@@ -1,4 +1,4 @@
-import { createServiceClient } from "@/lib/supabase/server"
+﻿import { createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import webpush from "web-push"
 
@@ -9,26 +9,31 @@ export async function POST(request: Request) {
     process.env.VAPID_PRIVATE_KEY!
   )
 
-  const { title, body, order_id } = await request.json()
+  const { title, body, url, order_id, user_id, roles } = await request.json()
   if (!title || !body) return NextResponse.json({ error: "Faltan datos" }, { status: 400 })
 
   const service = await createServiceClient()
 
-  const { data: profiles } = await service
-    .from("profiles")
-    .select("id")
-    .in("role", ["admin","administrativo"])
-    .eq("is_active", true)
+  // Buscar suscripciones — por user_id específico, por roles, o ambos
+  let query = service.from("push_subscriptions").select("*")
 
-  if (!profiles || profiles.length === 0)
-    return NextResponse.json({ success: true, sent: 0 })
+  if (user_id) {
+    query = query.eq("user_id", user_id)
+  } else {
+    const targetRoles = roles ?? ["admin", "administrativo"]
+    const { data: profiles } = await service
+      .from("profiles")
+      .select("id")
+      .in("role", targetRoles)
+      .eq("is_active", true)
 
-  const userIds = profiles.map(p => p.id)
+    if (!profiles || profiles.length === 0)
+      return NextResponse.json({ success: true, sent: 0 })
 
-  const { data: subscriptions } = await service
-    .from("push_subscriptions")
-    .select("*")
-    .in("user_id", userIds)
+    query = query.in("user_id", profiles.map(p => p.id))
+  }
+
+  const { data: subscriptions } = await query
 
   if (!subscriptions || subscriptions.length === 0)
     return NextResponse.json({ success: true, sent: 0 })
@@ -36,7 +41,7 @@ export async function POST(request: Request) {
   const payload = JSON.stringify({
     title,
     body,
-    url: order_id ? "/dispensas/pedidos" : "/dashboard",
+    url: url ?? (order_id ? "/dispensas/pedidos" : "/dashboard"),
     icon: "/icons/icon-192x192.png",
   })
 

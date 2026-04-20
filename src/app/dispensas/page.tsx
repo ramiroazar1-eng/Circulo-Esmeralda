@@ -6,6 +6,7 @@ import { PageHeader, Card, Table, EmptyState, Button } from "@/components/ui"
 import { BackButton } from "@/components/ui/BackButton"
 import { formatDateTime, formatGrams } from "@/lib/utils"
 import NewDispenseModal from "./NewDispenseModal"
+import ShiftClosureButton from "./ShiftClosureButton"
 
 export default async function DispensasPage() {
   const supabase = await createClient()
@@ -24,6 +25,18 @@ export default async function DispensasPage() {
     .is("deleted_at", null)
     .order("full_name")
 
+  const { data: pendingConfirmations } = await supabase
+    .from("dispense_confirmations")
+    .select("id, dispense_id, status, created_at, dispense:dispenses(id, grams, patient:patients(full_name), lot:lots(lot_code, genetic:genetics(name)))")
+    .eq("status", "pendiente")
+    .order("created_at", { ascending: true })
+
+  const { data: todayClosure } = await supabase
+    .from("shift_closures")
+    .select("id, status, actual_grams, expected_grams, difference_grams")
+    .eq("closure_date", new Date().toISOString().split("T")[0])
+    .maybeSingle()
+
   const { data: lots } = await supabase
     .from("v_stock_available")
     .select("lot_id, lot_code, available_grams, genetic_name, genetic_id")
@@ -36,6 +49,10 @@ export default async function DispensasPage() {
         description="Registro de todas las dispensas realizadas"
         actions={
           <div className="flex gap-2">
+            {!todayClosure && <ShiftClosureButton />}
+            {todayClosure && todayClosure.status === "diferencia" && (
+              <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-lg px-3 py-2">Cierre con diferencia</span>
+            )}
             <Link href="/dispensas/qr">
               <Button variant="secondary" size="sm">
                 <QrCode className="w-3.5 h-3.5" />
@@ -98,4 +115,8 @@ export default async function DispensasPage() {
     </div>
   )
 }
+
+
+
+
 

@@ -16,6 +16,18 @@ export async function POST(request: Request) {
 
   const service = await createServiceClient()
 
+  // Verificar que no hay dispensas pendientes de confirmacion para este paciente
+  const { data: pendingDispenses } = await service
+    .from("dispense_confirmations")
+    .select("id, dispense:dispenses(patient_id)")
+    .eq("status", "pendiente")
+
+  const hasPending = (pendingDispenses ?? []).some((dc: any) => dc.dispense?.patient_id === patient_id)
+  if (hasPending)
+    return NextResponse.json({
+      error: "Este paciente tiene una dispensa pendiente de confirmacion. Debe confirmar antes de registrar una nueva."
+    }, { status: 400 })
+
   // Verificar stock operativo para cada lote
   for (const item of items) {
     const { data: stockPos } = await service
@@ -25,18 +37,17 @@ export async function POST(request: Request) {
       .eq("storage_type", "operativo")
       .single()
 
-    if (!stockPos || stockPos.available_grams < item.grams) {
+    if (!stockPos || stockPos.available_grams < item.grams)
       return NextResponse.json({
-        error: `Stock operativo insuficiente para el lote. Disponible: ${stockPos?.available_grams ?? 0}g, solicitado: ${item.grams}g`
+        error: `Stock operativo insuficiente. Disponible: ${stockPos?.available_grams ?? 0}g`
       }, { status: 400 })
-    }
   }
 
-  // Registrar dispensas y descontar stock
   const dispensedAtDate = dispensed_at || new Date().toISOString()
+  const dispenseIds: string[] = []
 
+  // Registrar dispensas SIN descontar stock todavia
   for (const item of items) {
-    // Insertar dispensa
     const { data: dispense, error: dispenseError } = await service
       .from("dispenses")
       .insert({
@@ -52,34 +63,37 @@ export async function POST(request: Request) {
       .single()
 
     if (dispenseError) return NextResponse.json({ error: dispenseError.message }, { status: 400 })
+    dispenseIds.push(dispense.id)
 
-    // Descontar del stock operativo
-    const { data: stockPos } = await service
-      .from("stock_positions")
-      .select("id, available_grams")
-      .eq("lot_id", item.lot_id)
-      .eq("storage_type", "operativo")
-      .single()
-
-    if (stockPos) {
-      await service
-        .from("stock_positions")
-        .update({ available_grams: stockPos.available_grams - item.grams, updated_at: new Date().toISOString() })
-        .eq("id", stockPos.id)
-
-      // Registrar movimiento de stock
-      await service.from("stock_movements").insert({
-        lot_id: item.lot_id,
-        movement_type: "dispensa",
-        grams: item.grams,
-        dispense_id: dispense.id,
-        reference_note: `Dispensa a paciente`,
-        performed_by: user.id,
-        performed_at: dispensedAtDate
-      })
-    }
+    // Crear confirmacion pendiente
+    await service.from("dispense_confirmations").insert({
+      dispense_id: dispense.id,
+      patient_id,
+      status: "pendiente"
+    })
   }
 
-  return NextResponse.json({ success: true })
-}
+  // Buscar perfil del paciente para mandar push
+  const { data: patientProfile } = await service
+    .from("profiles")
+    .select("id")
+    .eq("patient_id", patient_id)
+    .eq("role", "paciente")
+    .maybeSingle()
 
+  if (patientProfile) {
+    const totalGrams = items.reduce((acc: number, i: any) => acc + i.grams, 0)
+    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/push/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Confirma tu retiro",
+        body: `Hay ${totalGrams}g listos para retirar. Abre la app para confirmar.`,
+        url: "/mi-perfil",
+        user_id: patientProfile.id
+      })
+    }).catch(() => {})
+  }
+
+  return NextResponse.json({ success: true, dispense_ids: dispenseIds, pending_confirmation: true })
+}
